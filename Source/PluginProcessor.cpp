@@ -238,10 +238,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout MultiMeterAudioProcessor::cr
 {
     // Create and return the parameter layout for the audio processor
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
-    layout.add(std::make_unique<juce::AudioParameterFloat>("Scale Knob",
-        "Scale Knob",
-        juce::NormalisableRange<float>(50.f, 200.f, 1.f, 0.1),
-        100.f));
+    // Fix for AU plugins: https://forum.juce.com/t/failing-assert-in-juce-audioprocessor/51926
+    layout.add(std::make_unique<juce::AudioParameterFloat>(ParameterID{"Scale Knob", 1},
+                                                           "Scale Knob", juce::NormalisableRange<float>(50.f, 200.f, 1.f, 0.1), 100.f));
 
     return layout;
 }

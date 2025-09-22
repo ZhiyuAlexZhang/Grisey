@@ -228,7 +228,6 @@ void MultiMeterAudioProcessorEditor::resized()
 
 void MultiMeterAudioProcessorEditor::timerCallback()
 {
-
     auto& audioProcessorFifo = audioProcessor.fifo;
 
     // If the audioProcessor.fifo has items available for reading
@@ -238,6 +237,8 @@ void MultiMeterAudioProcessorEditor::timerCallback()
         while (audioProcessorFifo.pull(buffer))
         {
         }
+        
+        gonioMeter.update(buffer);
     }
     
     // After finishing pulling all buffers out of the fifo in timerCallback,

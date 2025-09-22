@@ -46,10 +46,12 @@ struct Fifo
     // Pushes an element into the FIFO buffer
     bool push(const T& t)
     {
-        auto write = fifo.read(1);
-        if (write.blockSize1 > 0)
+        int start1, size1, start2, size2;
+        fifo.prepareToWrite(1, start1, size1, start2, size2); // Prepare to write one element
+        if (size1 > 0)
         {
-            buffers[write.startIndex1] = t;
+            buffers[start1] = t;
+            fifo.finishedWrite(size1); // Update the write position
             return true;
         }
         return false;
@@ -58,10 +60,12 @@ struct Fifo
     // Pulls an element from the FIFO buffer
     bool pull(T& t)
     {
-        auto read = fifo.write(1);
-        if (read.blockSize1 > 0)
+        int start1, size1, start2, size2;
+        fifo.prepareToRead(1, start1, size1, start2, size2); // Prepare to read one element
+        if (size1 > 0)
         {
-            t = buffers[read.startIndex1];
+            t = buffers[start1]; // Retrieve the data
+            fifo.finishedRead(size1); // Update the read position
             return true;
         }
         return false;
@@ -154,10 +158,11 @@ private:
 
 
 //==============================================================================
+// Just for clarity, channels are 0 based so Left should be first.
 enum Channel
 {
-    Right,
     Left,
+    Right,
 };
 
 //==============================================================================
@@ -174,9 +179,17 @@ struct SingleChannelSampleFifo
     void update(const BlockType& buffer)
     {
         jassert(prepared.get()); // Ensure that the FIFO is prepared.
-        jassert(buffer.getNumChannels() > channelToUse); // Ensure that the buffer has the required number of channels
-        auto* channelPtr = buffer.getReadPointer(channelToUse); // Get a pointer to the channel data
-
+        
+        // If we're not using stereo, set mono.
+        // Otherwise, newer Logic Pro X and the validation tools will fail causing crash ->
+        // meaning the plugin is invalidated and cannot be used from Plugin Manager.
+        auto actualChannelToUse = buffer.getNumChannels() > 1 ? channelToUse : 0;
+        
+        // Now we ensure that the buffer has the required number of channels, otherwise assert.
+        jassert(buffer.getNumChannels() > actualChannelToUse);
+        
+        auto* channelPtr = buffer.getReadPointer(actualChannelToUse); // Get a pointer to the channel data
+        
         // Iterate over the samples in the buffer and push them into the FIFO
         for (int i = 0; i < buffer.getNumSamples(); ++i)
         {

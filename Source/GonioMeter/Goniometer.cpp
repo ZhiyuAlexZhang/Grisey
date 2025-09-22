@@ -27,49 +27,41 @@ void Goniometer::paint(juce::Graphics& g)
     // Get the size of the internal buffer
     int internalBufferSize = internalBuffer.getNumSamples();
 
-    // Apply different processing depending on the buffer size
-    if (internalBufferSize < 256)
+    // Calculate the scaling coefficient based on the scale factor
+    float coefficient = juce::Decibels::decibelsToGain(0.f + juce::Decibels::gainToDecibels(scale));
+    
+    // Calculate the maximum and minimum gain values
+    float maxGain = juce::Decibels::decibelsToGain(MAX_DECIBELS);
+    float minGain = juce::Decibels::decibelsToGain(NEGATIVE_INFINITY);
+    
+    // Iterate over each sample in the internal buffer
+    for (int i = 0; i < internalBufferSize; ++i)
     {
-        // Apply gain reduction if the buffer size is less than 256 samples
-        internalBuffer.applyGain(juce::Decibels::decibelsToGain(-3.f));
-    }
-    else
-    {
-        // Calculate the scaling coefficient based on the scale factor
-        float coefficient = juce::Decibels::decibelsToGain(0.f + juce::Decibels::gainToDecibels(scale));
-        // Calculate the maximum and minimum gain values
-        float maxGain = juce::Decibels::decibelsToGain(MAX_DECIBELS);
-        float minGain = juce::Decibels::decibelsToGain(NEGATIVE_INFINITY);
-
-        // Iterate over each sample in the internal buffer
-        for (int i = 0; i < internalBufferSize; ++i)
+        // Calculate the S and M values for each sample
+        float leftRaw = internalBuffer.getSample(0, i);
+        float rightRaw = internalBuffer.getSample(1, i);
+        float S = (leftRaw - rightRaw) * coefficient;
+        float M = (leftRaw + rightRaw) * coefficient;
+        
+        // Map the S and M values to screen coordinates
+        auto a = (float)getLocalBounds().getX() + getWidth() / 2;
+        auto b = (float)getLocalBounds().getRight() + getWidth() / 2 - 40;
+        auto c = (float)getLocalBounds().getBottom() - getHeight() / 2 - 40;
+        auto d = (float)getLocalBounds().getY() - getHeight() / 2;
+        float xCoordinate = juce::jmap(S, minGain, maxGain, (float)a, (float)b);
+        float yCoordinate = juce::jmap(M, minGain, maxGain, (float)c, (float)d);
+        
+        // Create a point representing the current sample in screen coordinates
+        juce::Point<float> point{xCoordinate, yCoordinate};
+        
+        // Start a new sub-path if it's the first sample, otherwise add a line segment to the path
+        if (i == 0)
         {
-            // Calculate the S and M values for each sample
-            float leftRaw = internalBuffer.getSample(0, i);
-            float rightRaw = internalBuffer.getSample(1, i);
-            float S = (leftRaw - rightRaw) * coefficient;
-            float M = (leftRaw + rightRaw) * coefficient;
-
-            // Map the S and M values to screen coordinates
-            auto a = (float)getLocalBounds().getX() + getWidth() / 2;
-            auto b = (float)getLocalBounds().getRight() + getWidth() / 2 - 40;
-            auto c = (float)getLocalBounds().getBottom() - getHeight() / 2 - 40;
-            auto d = (float)getLocalBounds().getY() - getHeight() / 2;
-            float xCoordinate = juce::jmap(S, minGain, maxGain, (float)a, (float)b);
-            float yCoordinate = juce::jmap(M, minGain, maxGain, (float)c, (float)d);
-
-            // Create a point representing the current sample in screen coordinates
-            juce::Point<float> point{xCoordinate, yCoordinate};
-
-            // Start a new sub-path if it's the first sample, otherwise add a line segment to the path
-            if (i == 0)
-            {
-                p.startNewSubPath(point);
-            }
-            if (point.isFinite())
-            {
-                p.lineTo(point);
-            }
+            p.startNewSubPath(point);
+        }
+        if (point.isFinite())
+        {
+            p.lineTo(point);
         }
     }
 
@@ -144,11 +136,18 @@ void Goniometer::drawBackground(juce::Graphics& g)
     }
 }
 
-void Goniometer::update(juce::AudioBuffer<float>& bufferInput)
+void Goniometer::update(juce::AudioBuffer<float>& bufferInput) 
 {
-    // Clear the current buffer and update it with the new buffer
-    bufferInput.clear();
-    buffer = bufferInput;
+    // Ensure internalBuffer matches the size and content of bufferInput
+    if (internalBuffer.getNumSamples() != bufferInput.getNumSamples() || internalBuffer.getNumChannels() != bufferInput.getNumChannels())
+    {
+        internalBuffer.setSize(bufferInput.getNumChannels(), bufferInput.getNumSamples(), true);
+    }
+    
+    for (int channel = 0; channel < internalBuffer.getNumChannels(); ++channel) 
+    {
+        internalBuffer.copyFrom(channel, 0, bufferInput, channel, 0, bufferInput.getNumSamples());
+    }
 }
 
 void Goniometer::updateCoeff(float new_db)

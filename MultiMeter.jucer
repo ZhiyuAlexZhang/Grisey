@@ -2,7 +2,7 @@
 
 <JUCERPROJECT id="epc7FC" name="MultiMeter" projectType="audioplug" useAppConfig="0"
               addUsingNamespaceToJuceHeader="0" displaySplashScreen="1" jucerFormatVersion="1"
-              companyName="Yulania">
+              companyName="Yulania" version="1.0">
   <MAINGROUP id="aK0CnT" name="MultiMeter">
     <GROUP id="{3D408716-D058-AAD0-D1C6-03CA40C62C16}" name="Controls">
       <FILE id="LwRUOc" name="Buttons.h" compile="0" resource="0" file="Source/Controls/Buttons.h"/>
