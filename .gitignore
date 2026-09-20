@@ -7,3 +7,7 @@
 **/demo.gif
 **/demo.mov
 **/test-audio.mp3
+build/
+cmake-build-*/
+.vscode/
+.idea/

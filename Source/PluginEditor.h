@@ -2,7 +2,7 @@
   ==============================================================================
 
     This file contains the basic framework code for a JUCE plugin editor.
-    This project is created using JUCE version 6.1.2.
+    This project is built with JUCE version 9.
 
   ==============================================================================
 */

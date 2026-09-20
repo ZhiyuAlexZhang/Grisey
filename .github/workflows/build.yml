@@ -1,0 +1,60 @@
+name: Build
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-latest
+            pluginval: pluginval_macOS.zip
+            pluginval_bin: pluginval.app/Contents/MacOS/pluginval
+          - name: Windows
+            os: windows-latest
+            pluginval: pluginval_Windows.zip
+            pluginval_bin: pluginval.exe
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel 4
+
+      - name: Unit tests
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Validate VST3 with pluginval
+        shell: bash
+        run: |
+          curl -fsSL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/latest/download/${{ matrix.pluginval }}"
+          unzip -q pluginval.zip
+          "./${{ matrix.pluginval_bin }}" --strictness-level 10 --validate-in-process --skip-gui-tests \
+            --validate "build/MultiMeter_artefacts/Release/VST3/MultiMeter.vst3"
+
+      - name: Upload plugins
+        uses: actions/upload-artifact@v4
+        with:
+          name: MultiMeter-${{ matrix.name }}
+          path: |
+            build/MultiMeter_artefacts/Release/VST3
+            build/MultiMeter_artefacts/Release/AU
+            build/MultiMeter_artefacts/Release/CLAP
+            build/MultiMeter_artefacts/Release/Standalone

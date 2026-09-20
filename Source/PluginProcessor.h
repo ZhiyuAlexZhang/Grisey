@@ -2,7 +2,7 @@
   ==============================================================================
 
     This file contains the basic framework code for a JUCE plugin processor.
-    This project is created using JUCE version 6.1.2.
+    This project is built with JUCE version 9.
 
   ==============================================================================
 */
@@ -46,10 +46,10 @@ struct Fifo
     // Pushes an element into the FIFO buffer
     bool push(const T& t)
     {
-        auto write = fifo.read(1);
+        auto write = fifo.write(1);
         if (write.blockSize1 > 0)
         {
-            buffers[write.startIndex1] = t;
+            copyInto(buffers[write.startIndex1], t);
             return true;
         }
         return false;
@@ -58,7 +58,7 @@ struct Fifo
     // Pulls an element from the FIFO buffer
     bool pull(T& t)
     {
-        auto read = fifo.write(1);
+        auto read = fifo.read(1);
         if (read.blockSize1 > 0)
         {
             t = buffers[read.startIndex1];
@@ -70,22 +70,30 @@ struct Fifo
     // Returns the number of elements available for reading from the FIFO buffer
     int getNumAvailableForReading() const
     {
-        // TODO:
-        // If you are using MacOS and the meters are not responding to the audio signals,
-        // try removing the return keyword
         return fifo.getNumReady();
     }
 
     // Returns the available space in the FIFO buffer for writing
     int getAvailableSpace() const
     {
-        // TODO:
-        // If you are using MacOS and the meters are not responding to the audio signals
-        // try removing the return keyword
         return fifo.getFreeSpace();
     }
 
 private:
+    // push() runs on the audio thread, so audio buffers are copied into the
+    // preallocated slot without reallocating it
+    template<typename SampleType>
+    static void copyInto(juce::AudioBuffer<SampleType>& slot, const juce::AudioBuffer<SampleType>& source)
+    {
+        slot.setSize(source.getNumChannels(), source.getNumSamples(), false, false, true);
+
+        for (int channel = 0; channel < source.getNumChannels(); ++channel)
+            slot.copyFrom(channel, 0, source, channel, 0, source.getNumSamples());
+    }
+
+    template<typename U>
+    static void copyInto(U& slot, const U& source) { slot = source; }
+
     juce::AbstractFifo fifo{Size}; // AbstractFifo object to manage buffer read/write positions
     std::array<T, Size> buffers; // Array of buffers to store data elements
 };
@@ -156,8 +164,8 @@ private:
 //==============================================================================
 enum Channel
 {
-    Right,
     Left,
+    Right,
 };
 
 //==============================================================================
@@ -303,14 +311,18 @@ public:
     // FIFO for storing audio buffers
     Fifo<juce::AudioBuffer<float>, 30> fifo;
 
+    // Stereo copy of the incoming block that feeds the meters, so that mono
+    // layouts can be analyzed the same way as stereo ones
+    juce::AudioBuffer<float> analysisBuffer;
+
     // Value of the slider
-    float sliderValue;
+    float sliderValue = 100.f;
 
     // Flag indicating the display state of ticks
-    bool tickDisplayState;
+    bool tickDisplayState = true;
 
     // IDs for various parameters
-    int levelMeterDecayId, holdTimeId, averagerDurationId, levelMeterDisplayID, histogramDisplayID;
+    int levelMeterDecayId = 1, holdTimeId = 3, averagerDurationId = 1, levelMeterDisplayID = 0, histogramDisplayID = 0;
 
 #if USE_OSC
     // Oscillator for generating test signals

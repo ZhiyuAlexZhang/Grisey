@@ -58,7 +58,7 @@ void myLookAndFeel::drawRotarySlider(juce::Graphics& g,
         // Draw the label for the slider
         g.setFont(rswl->getTextHeight());
         auto text = rswl->getDisplayString();
-        auto strWidth = g.getCurrentFont().getStringWidth(text);
+        auto strWidth = juce::GlyphArrangement::getStringWidthInt(g.getCurrentFont(), text);
         r.setSize(strWidth, rswl->getTextHeight());
         r.setCentre(bounds.getCentre());
 
@@ -121,7 +121,7 @@ void RotarySliderWithLabels::paint(juce::Graphics& g)
         Rectangle<float> r;
         auto str = labels[i].label;
 
-        r.setSize(g.getCurrentFont().getStringWidth(str), getTextHeight());
+        r.setSize(juce::GlyphArrangement::getStringWidthInt(g.getCurrentFont(), str), getTextHeight());
 
         r.setCentre(c);
 

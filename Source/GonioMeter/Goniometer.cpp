@@ -19,9 +19,12 @@ void Goniometer::paint(juce::Graphics& g)
     p.clear();
 
     // Copy the audio data from the input buffer to the internal buffer
-    for (int channel = 0; channel < 2; ++channel) // Assuming stereo data (2 channels)
+    // The incoming block can be shorter than the internal buffer
+    const int numSamplesToCopy = juce::jmin(internalBuffer.getNumSamples(), buffer.getNumSamples());
+    internalBuffer.clear();
+    for (int channel = 0; channel < juce::jmin(2, buffer.getNumChannels()); ++channel)
     {
-        internalBuffer.copyFrom(channel, 0, buffer, channel, 0, internalBuffer.getNumSamples());
+        internalBuffer.copyFrom(channel, 0, buffer, channel, 0, numSamplesToCopy);
     }
 
     // Get the size of the internal buffer

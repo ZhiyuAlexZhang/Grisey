@@ -2,7 +2,7 @@
   ==============================================================================
 
     This file contains the basic framework code for a JUCE plugin processor.
-    This project is created using JUCE version 6.1.2.
+    This project is built with JUCE version 9.
 
   ==============================================================================
 */
@@ -102,15 +102,17 @@ void MultiMeterAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
     // Use this method as the place to do any pre-playback initialization
     
     // Prepare the Fifo<> instance in prepareToPlay()
-    fifo.prepare(sampleRate, getTotalNumOutputChannels());
+    fifo.prepare(samplesPerBlock, 2);
+    analysisBuffer.setSize(2, samplesPerBlock, false, true, true);
+    analysisBuffer.clear();
     
     leftChannelFifo.prepare(samplesPerBlock);
     rightChannelFifo.prepare(samplesPerBlock);
     
     #if USE_OSC
         juce::dsp::ProcessSpec spec;
-        spec.maximumBlockSize = sampleRate;
-        spec.sampleRate = samplesPerBlock;
+        spec.maximumBlockSize = (juce::uint32) samplesPerBlock;
+        spec.sampleRate = sampleRate;
         spec.numChannels = getTotalNumOutputChannels();
         
         osc.prepare(spec);
@@ -178,12 +180,25 @@ void MultiMeterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
     gain.process(juce::dsp::ProcessContextReplacing<float>(audioBlock));
     #endif
     
-    // Push the current audio buffer to the FIFO for processing
-    fifo.push(buffer);
+    const int numChannels = buffer.getNumChannels();
+    const int numSamples = juce::jmin(buffer.getNumSamples(), analysisBuffer.getNumSamples());
 
-    // Update the left and right channel FIFOs with the current audio buffer
-    leftChannelFifo.update(buffer);
-    rightChannelFifo.update(buffer);
+    if (numChannels > 0 && numSamples > 0)
+    {
+        // The meters always analyze a stereo signal, a mono input feeds both sides
+        analysisBuffer.copyFrom(0, 0, buffer, 0, 0, numSamples);
+        analysisBuffer.copyFrom(1, 0, buffer, juce::jmin(1, numChannels - 1), 0, numSamples);
+
+        // A view of the samples in this block, which refers to analysisBuffer's memory
+        juce::AudioBuffer<float> block(analysisBuffer.getArrayOfWritePointers(), 2, numSamples);
+
+        // Push the current audio buffer to the FIFO for processing
+        fifo.push(block);
+
+        // Update the left and right channel FIFOs with the current audio buffer
+        leftChannelFifo.update(block);
+        rightChannelFifo.update(block);
+    }
 
 #if USE_OSC
     // Clear the audio buffer if oscillator synthesis is used
