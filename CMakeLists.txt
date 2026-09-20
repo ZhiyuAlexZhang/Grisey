@@ -81,7 +81,8 @@ if(MULTIMETER_BUILD_TESTS)
     juce_add_console_app(MultiMeterTests PRODUCT_NAME "MultiMeterTests")
     target_sources(MultiMeterTests PRIVATE
         Tests/ProcessorTests.cpp
-        Tests/LoudnessTests.cpp)
+        Tests/LoudnessTests.cpp
+        Tests/SpectrumTests.cpp)
 
     # The tests link against the plugin's shared-code library, which already
     # contains the JUCE modules, so they only borrow its include paths and
