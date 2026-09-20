@@ -5,6 +5,7 @@
 #include <atomic>
 #include <cmath>
 #include <vector>
+#include "AtomicMax.h"
 
 //==============================================================================
 // Measures the signal on the audio thread, from every sample, and publishes the
@@ -165,14 +166,6 @@ private:
     double coefficientFor(double seconds) const
     {
         return std::exp(-1.0 / (std::max(0.001, seconds) * sampleRate));
-    }
-
-    static void storeMax(std::atomic<float>& target, float value)
-    {
-        float current = target.load(std::memory_order_relaxed);
-        while (value > current && ! target.compare_exchange_weak(current, value, std::memory_order_relaxed))
-        {
-        }
     }
 
     double sampleRate = 44100.0;

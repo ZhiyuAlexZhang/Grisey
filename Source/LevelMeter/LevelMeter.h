@@ -2,10 +2,21 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include "../GonioMeter/Goniometer.h"
+#include "../Common/Averager.h"
 #include "../Constants.h"
 
 
+// The settings that all the level meters share, which the editor reads from the parameters in every update
+struct LevelMeterSettings
+{
+    float decayRateDbPerSecond = 3.f; // How fast the ticks fall once their hold has passed
+    float holdTimeSeconds = 2.f;      // How long the ticks are held, which can be infinite
+    int viewId = 0;                   // 0 shows peak and average, 1 only peak, and 2 only average
+    bool showTick = true;
+    bool resetHold = false;           // True for the one update after the reset button was clicked
+};
+
+//==============================================================================
 struct Tick
 {
     float db{ 0.f }; // dB value associated with the tick
@@ -120,9 +131,8 @@ struct Meter : juce::Component
     // Paints the component
     void paint(juce::Graphics&) override;
 
-    // Updates the meter with the specified dB level, decay rate, hold time in seconds, reset flag,
-    // show tick flag, and the time since the last update
-    void update(float dbLevel, float decay_rate, float hold_time_, bool reset_hold, bool show_tick_, float elapsedSeconds);
+    // Updates the meter with the specified dB level, the shared settings, and the time since the last update
+    void update(float dbLevel, const LevelMeterSettings& settings, float elapsedSeconds);
 
 private:
     float peakDb { NEGATIVE_INFINITY }; // Peak dB level
@@ -140,7 +150,7 @@ public:
     void resized() override;
 
     // Updates the macro meter with the specified parameters
-    void update(float level, float decay_rate, bool show_peak, bool shwo_avg, float hold_time_, bool reset_hold, bool show_tick_, float elapsedSeconds);
+    void update(float level, const LevelMeterSettings& settings, float elapsedSeconds);
 
 private:
     TextMeter textMeter; // Text meter component
@@ -163,9 +173,9 @@ public:
     // Called when the component is resized
     void resized() override;
 
-    // Updates the stereo meter with left and right channel dB levels, decay rate, meter view ID, show tick flag,
-    // hold time in seconds, reset hold flag, and the time since the last update
-    void update(float leftChanDb, float rightChanDb, float decay_rate, int meterViewID, bool show_tick, float hold_time_, bool reset_hold, float elapsedSeconds);
+    // Updates the stereo meter with left and right channel dB levels, the shared settings,
+    // and the time since the last update
+    void update(float leftChanDb, float rightChanDb, const LevelMeterSettings& settings, float elapsedSeconds);
 
     // Sets the text label
     void setText(juce::String labelName);

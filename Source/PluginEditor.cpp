@@ -31,20 +31,6 @@ MultiMeterAudioProcessorEditor::MultiMeterAudioProcessorEditor(MultiMeterAudioPr
     vBlankAttachment(this, [this](double timestampSeconds) { vBlank(timestampSeconds); })
 {
     auto& apvts = audioProcessor.apvts;
-    scaleParameter = apvts.getRawParameterValue(Parameters::ID::goniometerScale);
-    decayRateParameter = apvts.getRawParameterValue(Parameters::ID::decayRate);
-    holdTimeParameter = apvts.getRawParameterValue(Parameters::ID::holdTime);
-    meterViewParameter = apvts.getRawParameterValue(Parameters::ID::meterView);
-    showTickParameter = apvts.getRawParameterValue(Parameters::ID::showTick);
-    goniometerModeParameter = apvts.getRawParameterValue(Parameters::ID::goniometerMode);
-    goniometerPersistenceParameter = apvts.getRawParameterValue(Parameters::ID::goniometerPersistence);
-    spectrumChannelsParameter = apvts.getRawParameterValue(Parameters::ID::spectrumChannels);
-    spectrumTiltParameter = apvts.getRawParameterValue(Parameters::ID::spectrumTilt);
-    spectrumSmoothingParameter = apvts.getRawParameterValue(Parameters::ID::spectrumSmoothing);
-    spectrumResolutionParameter = apvts.getRawParameterValue(Parameters::ID::spectrumResolution);
-    spectrumPeakHoldParameter = apvts.getRawParameterValue(Parameters::ID::spectrumPeakHold);
-    loudnessTargetParameter = apvts.getRawParameterValue(Parameters::ID::loudnessTarget);
-
     // The menu switch changes between the visuals
     addAndMakeVisible(menuViewSwitch);
     menuViewSwitch.setOptions(Parameters::mainViewNames);
@@ -94,48 +80,36 @@ MultiMeterAudioProcessorEditor::MultiMeterAudioProcessorEditor(MultiMeterAudioPr
 
     // Scale knob setup
     addAndMakeVisible(scaleKnobSlider);
-    addAndMakeVisible(scaleKnobLabel);
-    scaleKnobLabel.setText("Goniometer Scale", juce::NotificationType::dontSendNotification);
-    scaleKnobLabel.setColour(Label::ColourIds::textColourId, Colours::black);
+    addLabel(scaleKnobLabel, "Goniometer Scale");
 
     // Level meter decay setup
     addAndMakeVisible(levelMeterDecaySelector);
     levelMeterDecaySelector.addItemList(Parameters::decayRateNames, 1);
     levelMeterDecayAttachment = std::make_unique<APVTS::ComboBoxAttachment>(apvts, Parameters::ID::decayRate, levelMeterDecaySelector);
-    addAndMakeVisible(levelMeterDecayLabel);
-    levelMeterDecayLabel.setText("Level Meter Decay", juce::NotificationType::dontSendNotification);
-    levelMeterDecayLabel.setColour(Label::ColourIds::textColourId, Colours::black);
+    addLabel(levelMeterDecayLabel, "Level Meter Decay");
 
     // Averager duration setup
     addAndMakeVisible(averagerDurationSelector);
     averagerDurationSelector.addItemList(Parameters::averagerDurationNames, 1);
     averagerDurationAttachment = std::make_unique<APVTS::ComboBoxAttachment>(apvts, Parameters::ID::averagerDuration, averagerDurationSelector);
-    addAndMakeVisible(averagerDurationLabel);
-    averagerDurationLabel.setText("Averager Duration", juce::NotificationType::dontSendNotification);
-    averagerDurationLabel.setColour(Label::ColourIds::textColourId, Colours::black);
+    addLabel(averagerDurationLabel, "Averager Duration");
 
     // Meter view setup
     addAndMakeVisible(meterViewButton);
     for (auto& name : Parameters::meterViewNames)
         meterViewButton.addOption(name);
     meterViewButton.onChange = [this](int id) { meterViewAttachment.setValueAsCompleteGesture((float)id); };
-    addAndMakeVisible(meterViewLabel);
-    meterViewLabel.setText("Level Meter Display", juce::NotificationType::dontSendNotification);
-    meterViewLabel.setColour(Label::ColourIds::textColourId, Colours::black);
+    addLabel(meterViewLabel, "Level Meter Display");
 
     // Tick display setup
     addAndMakeVisible(tickDisplay);
-    addAndMakeVisible(tickDisplayLabel);
-    tickDisplayLabel.setText("Tick Display", juce::NotificationType::dontSendNotification);
-    tickDisplayLabel.setColour(Label::ColourIds::textColourId, Colours::black);
+    addLabel(tickDisplayLabel, "Tick Display");
 
     // Hold time setup
     addAndMakeVisible(holdTimeSelector);
     holdTimeSelector.addItemList(Parameters::holdTimeNames, 1);
     holdTimeAttachment = std::make_unique<APVTS::ComboBoxAttachment>(apvts, Parameters::ID::holdTime, holdTimeSelector);
-    addAndMakeVisible(holdTimeLabel);
-    holdTimeLabel.setText("Tick Hold Duration", juce::NotificationType::dontSendNotification);
-    holdTimeLabel.setColour(Label::ColourIds::textColourId, Colours::black);
+    addLabel(holdTimeLabel, "Tick Hold Duration");
 
     // Reset hold setup
     // The button is only needed while the ticks are held forever
@@ -144,18 +118,10 @@ MultiMeterAudioProcessorEditor::MultiMeterAudioProcessorEditor(MultiMeterAudioPr
     resetHold.onClick = [this] { resetHoldRequested = true; };
 
     // Histogram view setup
-    addAndMakeVisible(histogramViewLabel);
-    histogramViewLabel.setText("Histogram Display", juce::NotificationType::dontSendNotification);
-    histogramViewLabel.setColour(Label::ColourIds::textColourId, Colours::black);
-    addAndMakeVisible(correlationLabel0);
-    correlationLabel0.setText("-1", juce::NotificationType::dontSendNotification);
-    correlationLabel0.setColour(Label::ColourIds::textColourId, Colours::black);
-    addAndMakeVisible(correlationLabel1);
-    correlationLabel1.setText("0", juce::NotificationType::dontSendNotification);
-    correlationLabel1.setColour(Label::ColourIds::textColourId, Colours::black);
-    addAndMakeVisible(correlationLabel2);
-    correlationLabel2.setText("+1", juce::NotificationType::dontSendNotification);
-    correlationLabel2.setColour(Label::ColourIds::textColourId, Colours::black);
+    addLabel(histogramViewLabel, "Histogram Display");
+    addLabel(correlationLabel0, "-1");
+    addLabel(correlationLabel1, "0");
+    addLabel(correlationLabel2, "+1");
 
     // Set the look and feel
     setLookAndFeel(&lookAndFeel);
@@ -314,17 +280,21 @@ void MultiMeterAudioProcessorEditor::updateMeters(float elapsedSeconds)
     float rightChannelRMSDecibels = juce::Decibels::gainToDecibels(readings.rms[1], NEGATIVE_INFINITY);
 
     // The settings come straight from the parameters
-    const float decayRate = Parameters::valueAt(Parameters::decayRatesDbPerSecond, juce::roundToInt(decayRateParameter->load()));
-    const float holdTime = Parameters::valueAt(Parameters::holdTimesSeconds, juce::roundToInt(holdTimeParameter->load()));
-    const int meterViewId = juce::roundToInt(meterViewParameter->load());
-    const bool showTick = showTickParameter->load() > 0.5f;
+    using namespace Parameters;
+
+    LevelMeterSettings meterSettings;
+    meterSettings.decayRateDbPerSecond = valueAt(decayRatesDbPerSecond, getChoice(ID::decayRate));
+    meterSettings.holdTimeSeconds = valueAt(holdTimesSeconds, getChoice(ID::holdTime));
+    meterSettings.viewId = getChoice(ID::meterView);
+    meterSettings.showTick = isOn(ID::showTick);
+    meterSettings.resetHold = resetHoldRequested;
+    resetHoldRequested = false;
 
     // The reset button is only needed while the ticks are held forever
-    resetHold.setVisible(std::isinf(holdTime));
+    resetHold.setVisible(std::isinf(meterSettings.holdTimeSeconds));
 
-    peakMeter.update(leftChannelMagnitudeDecibels, rightChannelMagnitudeDecibels, decayRate, meterViewId, showTick, holdTime, resetHoldRequested, elapsedSeconds);
-    RMSMeter.update(leftChannelRMSDecibels, rightChannelRMSDecibels, decayRate, meterViewId, showTick, holdTime, resetHoldRequested, elapsedSeconds);
-    resetHoldRequested = false;
+    peakMeter.update(leftChannelMagnitudeDecibels, rightChannelMagnitudeDecibels, meterSettings, elapsedSeconds);
+    RMSMeter.update(leftChannelRMSDecibels, rightChannelRMSDecibels, meterSettings, elapsedSeconds);
 
     // Updating peak and RMS histograms with the average of left and right channel RMS and peak values
     // They keep recording while another view is shown
@@ -346,7 +316,7 @@ void MultiMeterAudioProcessorEditor::updateMeters(float elapsedSeconds)
 
         const float truePeakDb = juce::Decibels::gainToDecibels(juce::jmax(truePeak.peak[0], truePeak.peak[1]), NEGATIVE_INFINITY);
         const float maxTruePeakDb = juce::Decibels::gainToDecibels(juce::jmax(truePeak.maxPeak[0], truePeak.maxPeak[1]), NEGATIVE_INFINITY);
-        const float target = Parameters::valueAt(Parameters::loudnessTargetsLufs, juce::roundToInt(loudnessTargetParameter->load()));
+        const float target = valueAt(loudnessTargetsLufs, getChoice(ID::loudnessTarget));
 
         loudnessView.update(loudness, audioRunning ? truePeakDb : NEGATIVE_INFINITY, maxTruePeakDb, target, audioRunning, elapsedSeconds);
     }
@@ -356,10 +326,10 @@ void MultiMeterAudioProcessorEditor::updateMeters(float elapsedSeconds)
     {
         // Scaling knob values are mapped to a range of 50 - 200
         // This value is used as a gain factor in the updateCoeff function of the gonioMeter
-        gonioMeter.updateCoeff(scaleParameter->load() / 100.f);
+        gonioMeter.updateCoeff(getValue(ID::goniometerScale) / 100.f);
 
-        const auto mode = juce::roundToInt(goniometerModeParameter->load()) == Parameters::polarMode ? Goniometer::polar : Goniometer::lissajous;
-        const float persistence = Parameters::valueAt(Parameters::goniometerPersistenceSeconds, juce::roundToInt(goniometerPersistenceParameter->load()));
+        const auto mode = getChoice(ID::goniometerMode) == polarMode ? Goniometer::polar : Goniometer::lissajous;
+        const float persistence = valueAt(goniometerPersistenceSeconds, getChoice(ID::goniometerPersistence));
         gonioMeter.update(audioProcessor.sampleRingBuffer, elapsedSeconds, mode, persistence);
     }
 
@@ -367,21 +337,46 @@ void MultiMeterAudioProcessorEditor::updateMeters(float elapsedSeconds)
     {
         // While frozen the spectra stay as they are, but a change of setting still shows
         const bool frozen = freezeButton != nullptr && freezeButton->getToggleState();
-        const int order = Parameters::valueAt(Parameters::spectrumResolutionOrders, juce::roundToInt(spectrumResolutionParameter->load()));
-        const float tilt = Parameters::valueAt(Parameters::spectrumTiltsDbPerOctave, juce::roundToInt(spectrumTiltParameter->load()));
+        const int order = valueAt(spectrumResolutionOrders, getChoice(ID::spectrumResolution));
+        const float tilt = valueAt(spectrumTiltsDbPerOctave, getChoice(ID::spectrumTilt));
         const bool hasNewSpectra = !frozen && spectrumSource.update(elapsedSeconds, order);
 
         if (spectrumAnalyzer.isVisible())
         {
-            const bool midSide = juce::roundToInt(spectrumChannelsParameter->load()) == 1;
-            const float smoothing = Parameters::valueAt(Parameters::spectrumSmoothingOctaves, juce::roundToInt(spectrumSmoothingParameter->load()));
-            spectrumAnalyzer.update(hasNewSpectra, midSide, tilt, smoothing, spectrumPeakHoldParameter->load() > 0.5f);
+            SpectrumAnalyzer::Settings analyzerSettings;
+            analyzerSettings.midSide = getChoice(ID::spectrumChannels) == 1;
+            analyzerSettings.tiltDbPerOctave = tilt;
+            analyzerSettings.smoothingOctaves = valueAt(spectrumSmoothingOctaves, getChoice(ID::spectrumSmoothing));
+            analyzerSettings.peakHold = isOn(ID::spectrumPeakHold);
+            spectrumAnalyzer.update(hasNewSpectra, analyzerSettings);
         }
         else if (hasNewSpectra)
         {
             spectrogram.addColumn(tilt);
         }
     }
+}
+
+float MultiMeterAudioProcessorEditor::getValue(const juce::String& parameterID) const
+{
+    return audioProcessor.apvts.getRawParameterValue(parameterID)->load();
+}
+
+int MultiMeterAudioProcessorEditor::getChoice(const juce::String& parameterID) const
+{
+    return juce::roundToInt(getValue(parameterID));
+}
+
+bool MultiMeterAudioProcessorEditor::isOn(const juce::String& parameterID) const
+{
+    return getValue(parameterID) > 0.5f;
+}
+
+void MultiMeterAudioProcessorEditor::addLabel(juce::Label& label, const juce::String& text)
+{
+    addAndMakeVisible(label);
+    label.setText(text, juce::NotificationType::dontSendNotification);
+    label.setColour(Label::ColourIds::textColourId, Colours::black);
 }
 
 void MultiMeterAudioProcessorEditor::showMainView(int viewId)

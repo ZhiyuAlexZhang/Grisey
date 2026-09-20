@@ -56,19 +56,19 @@ void Meter::paint(juce::Graphics& g)
 
 }
 
-void Meter::update(float dbLevel, float decay_rate, float hold_time_, bool reset_hold, bool show_tick_, float elapsedSeconds)
+void Meter::update(float dbLevel, const LevelMeterSettings& settings, float elapsedSeconds)
 {
     // Pass in a decibel value and store it in peakDb
     peakDb = dbLevel;
-    show_tick = show_tick_;
+    show_tick = settings.showTick;
 
     // Because the decay rate and hold time could change anytime, they are passed in with every update
-    decayingValueHolder.setLevelMeterDecay(decay_rate);
-    decayingValueHolder.setHoldTime(hold_time_);
+    decayingValueHolder.setLevelMeterDecay(settings.decayRateDbPerSecond);
+    decayingValueHolder.setHoldTime(settings.holdTimeSeconds);
     decayingValueHolder.updateHeldValue(dbLevel, elapsedSeconds);
 
     // Call repaint()
-    if (reset_hold)
+    if (settings.resetHold)
         decayingValueHolder.setCurrentValue(NEGATIVE_INFINITY);
     repaint();
 }
@@ -251,15 +251,19 @@ void MacroMeter::resized()
     }
 }
 
-void MacroMeter::update(float level, float decay_rate, bool show_peak, bool show_avg, float hold_time_, bool reset_hold, bool show_tick_, float elapsedSeconds)
+void MacroMeter::update(float level, const LevelMeterSettings& settings, float elapsedSeconds)
 {
     // Update the child components with the provided parameters
     textMeter.update(level, elapsedSeconds);
-    instantMeter.update(level, decay_rate, hold_time_, reset_hold, show_tick_, elapsedSeconds);
-    averageMeter.update(averager.getAvg(), decay_rate, hold_time_, reset_hold, show_tick_, elapsedSeconds);
+    instantMeter.update(level, settings, elapsedSeconds);
+    averageMeter.update(averager.getAvg(), settings, elapsedSeconds);
 
     // Add the current level to the averager
     averager.add(level);
+
+    // Determine whether to show peak and average based on the view
+    const bool show_peak = settings.viewId == 0 || settings.viewId == 1;
+    const bool show_avg = settings.viewId == 0 || settings.viewId == 2;
 
     // Lay the meters out again only when the view has changed
     if (show_peak_ != show_peak || show_avg_ != show_avg)
@@ -313,16 +317,12 @@ void StereoMeter::resized()
     dbScale.buildBackgroundImage(10, bounds.withTrimmedTop(13), NEGATIVE_INFINITY, MAX_DECIBELS);
 }
 
-void StereoMeter::update(float leftChanDb, float rightChanDb, float decay_rate, int meterViewID, bool show_tick, float hold_time_, bool reset_hold, float elapsedSeconds)
+void StereoMeter::update(float leftChanDb, float rightChanDb, const LevelMeterSettings& settings, float elapsedSeconds)
 {
-    // Determine whether to show peak and average based on meterViewID
-    bool show_peak = !meterViewID || meterViewID == 1;
-    bool show_avg = !meterViewID || meterViewID == 2;
-
     // Update the leftMeter and rightMeter components with the provided parameters
     // The meters repaint themselves, and the scale only changes when the component is resized
-    leftMeter.update(leftChanDb, decay_rate, show_peak, show_avg, hold_time_, reset_hold, show_tick, elapsedSeconds);
-    rightMeter.update(rightChanDb, decay_rate, show_peak, show_avg, hold_time_, reset_hold, show_tick, elapsedSeconds);
+    leftMeter.update(leftChanDb, settings, elapsedSeconds);
+    rightMeter.update(rightChanDb, settings, elapsedSeconds);
 }
 
 void StereoMeter::setText(juce::String labelName)

@@ -8,6 +8,7 @@
 **/demo.mov
 **/test-audio.mp3
 build/
+build-*/
 cmake-build-*/
 .vscode/
 .idea/

@@ -425,7 +425,7 @@ void SpectrumAnalyzer::paintOverChildren(Graphics& g)
             g.setColour(colours[i]);
             g.strokePath(makePath(curves[i], responseArea, false), PathStrokeType(1.2f));
 
-            if (showsPeakHold && peakHolds[i].size() == curves[i].size())
+            if (settings.peakHold && peakHolds[i].size() == curves[i].size())
             {
                 g.setColour(colours[i].withAlpha(0.55f));
                 g.strokePath(makePath(peakHolds[i], responseArea, false), PathStrokeType(1.f));
@@ -446,9 +446,9 @@ void SpectrumAnalyzer::paintOverChildren(Graphics& g)
         auto legend = getAnalysisArea().withTrimmedTop(22).removeFromTop(16).removeFromRight(44).translated(-4, 0);
         g.setFont(12.f);
         g.setColour(firstCurveColour);
-        g.drawText(showsMidSide ? "M" : "L", legend.removeFromLeft(22), juce::Justification::centred);
+        g.drawText(settings.midSide ? "M" : "L", legend.removeFromLeft(22), juce::Justification::centred);
         g.setColour(secondCurveColour);
-        g.drawText(showsMidSide ? "S" : "R", legend, juce::Justification::centred);
+        g.drawText(settings.midSide ? "S" : "R", legend, juce::Justification::centred);
     }
 
     // Create a border path
@@ -465,37 +465,32 @@ void SpectrumAnalyzer::paintOverChildren(Graphics& g)
 }
 
 // Update function for SpectrumAnalyzer
-void SpectrumAnalyzer::update(bool hasNewSpectra, bool midSide, float tiltDbPerOctave, float smoothingOctaves, bool peakHold)
+void SpectrumAnalyzer::update(bool hasNewSpectra, const Settings& newSettings)
 {
     // Two points per pixel keep the curves smooth
     const int numPoints = juce::jmax(2, getAnalysisArea().getWidth() * 2);
+    const bool settingsChanged = numPoints != display.numPoints || !(newSettings == settings);
 
-    const bool settingsChanged = numPoints != display.numPoints
-        || midSide != showsMidSide
-        || !juce::exactlyEqual(tiltDbPerOctave, display.tiltDbPerOctave)
-        || !juce::exactlyEqual(smoothingOctaves, display.smoothingOctaves);
+    if (!hasNewSpectra && !settingsChanged)
+        return;
 
     // The peak hold starts afresh whenever it would no longer be comparable
-    if (settingsChanged || peakHold != showsPeakHold)
+    if (settingsChanged)
         for (auto& hold : peakHolds)
             hold.clear();
 
-    if (!hasNewSpectra && !settingsChanged && peakHold == showsPeakHold)
-        return;
-
+    settings = newSettings;
     display.numPoints = numPoints;
-    display.tiltDbPerOctave = tiltDbPerOctave;
-    display.smoothingOctaves = smoothingOctaves;
-    showsMidSide = midSide;
-    showsPeakHold = peakHold;
+    display.tiltDbPerOctave = settings.tiltDbPerOctave;
+    display.smoothingOctaves = settings.smoothingOctaves;
 
     auto& engine = source.getEngine();
     const auto sampleRate = source.getSampleRate();
 
-    engine.render(midSide ? SpectrumEngine::Curve::mid : SpectrumEngine::Curve::left, display, sampleRate, curves[0]);
-    engine.render(midSide ? SpectrumEngine::Curve::side : SpectrumEngine::Curve::right, display, sampleRate, curves[1]);
+    engine.render(settings.midSide ? SpectrumEngine::Curve::mid : SpectrumEngine::Curve::left, display, sampleRate, curves[0]);
+    engine.render(settings.midSide ? SpectrumEngine::Curve::side : SpectrumEngine::Curve::right, display, sampleRate, curves[1]);
 
-    if (peakHold)
+    if (settings.peakHold)
     {
         for (size_t i = 0; i < curves.size(); ++i)
         {

@@ -39,6 +39,7 @@ void Goniometer::resized()
     // The grid covers the square around the circle
     gridSize = juce::jmax(0, w * cellsPerPixel);
     intensity.assign((size_t)(gridSize * gridSize), 0.f);
+    isLit = false;
     image = gridSize > 0 ? juce::Image(juce::Image::ARGB, gridSize, gridSize, true) : juce::Image();
     hasLastPoint = false;
 }
@@ -54,18 +55,30 @@ void Goniometer::update(const SampleRingBuffer& ringBuffer, float elapsedSeconds
         mode = newMode;
         std::fill(intensity.begin(), intensity.end(), 0.f);
         hasLastPoint = false;
-        repaint();
+        isLit = true; // so that the cleared grid is drawn
     }
-
-    // Let the light that is already there fade
-    const float keep = persistenceSeconds > 0.f ? std::exp(-elapsedSeconds / persistenceSeconds) : 0.f;
-    for (auto& value : intensity)
-        value *= keep;
 
     // Plot the samples that have arrived since the last update
     const auto totalWritten = ringBuffer.getTotalWritten();
     const auto numNew = totalWritten >= lastTotalWritten ? totalWritten - lastTotalWritten : totalWritten;
     const int numSamples = (int)juce::jmin<juce::uint64>(numNew, (juce::uint64)maxSamplesPerUpdate);
+
+    if (!isLit && numSamples == 0)
+        return;
+
+    // Let the light that is already there fade, and find out whether any is left
+    const float keep = persistenceSeconds > 0.f ? std::exp(-elapsedSeconds / persistenceSeconds) : 0.f;
+    float brightest = 0.f;
+    for (auto& value : intensity)
+    {
+        value *= keep;
+        brightest = juce::jmax(brightest, value);
+    }
+
+    // Light too faint to show in an 8-bit image counts as none
+    isLit = brightest > faintestLight;
+    if (!isLit)
+        std::fill(intensity.begin(), intensity.end(), 0.f);
 
     // The trace only carries on from the last update if no samples were left out in between
     if (numNew > (juce::uint64)maxSamplesPerUpdate)
@@ -111,6 +124,7 @@ void Goniometer::update(const SampleRingBuffer& ringBuffer, float elapsedSeconds
 
             lastPoint = point;
             hasLastPoint = true;
+            isLit = true;
         }
     }
 
@@ -172,10 +186,11 @@ void Goniometer::drawBackground(juce::Graphics& g)
 {
     // Draw the background ellipse with the edge color
     g.setColour(edgeColour);
-    g.drawEllipse(center.getX() - w / 2, center.getY() - h / 2, w, h, 1);
+    const auto circle = juce::Rectangle<float>(2.f * getRadius(), 2.f * getRadius()).withCentre(center.toFloat());
+    g.drawEllipse(circle, 1);
     // Fill the background ellipse with the base color
     g.setColour(BASE_COLOR);
-    g.fillEllipse(center.getX() - w / 2, center.getY() - h / 2, w, h);
+    g.fillEllipse(circle);
 
     // The axes and their labels: side runs left and right, mid runs up,
     // and the channels lie on the diagonals in between

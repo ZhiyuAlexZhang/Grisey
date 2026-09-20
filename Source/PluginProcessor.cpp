@@ -84,16 +84,16 @@ int MultiMeterAudioProcessor::getCurrentProgram()
     return 0;
 }
 
-void MultiMeterAudioProcessor::setCurrentProgram (int index)
+void MultiMeterAudioProcessor::setCurrentProgram (int)
 {
 }
 
-const juce::String MultiMeterAudioProcessor::getProgramName (int index)
+const juce::String MultiMeterAudioProcessor::getProgramName (int)
 {
     return {};
 }
 
-void MultiMeterAudioProcessor::changeProgramName (int index, const juce::String& newName)
+void MultiMeterAudioProcessor::changeProgramName (int, const juce::String&)
 {
 }
 
@@ -151,7 +151,7 @@ bool MultiMeterAudioProcessor::isBusesLayoutSupported (const BusesLayout& layout
 }
 #endif
 
-void MultiMeterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+void MultiMeterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals noDenormals;
     auto totalNumInputChannels  = getTotalNumInputChannels();

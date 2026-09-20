@@ -80,29 +80,27 @@ option(MULTIMETER_BUILD_TESTS "Build the unit tests" ON)
 if(MULTIMETER_BUILD_TESTS)
     enable_testing()
 
-    juce_add_console_app(MultiMeterTests PRODUCT_NAME "MultiMeterTests")
-    target_sources(MultiMeterTests PRIVATE
+    # Adds a console tool that uses the plugin's code. It links against the plugin's
+    # shared-code library, which already contains the JUCE modules, so it only borrows
+    # that library's include paths and definitions rather than compiling the modules again.
+    function(multimeter_add_tool name)
+        juce_add_console_app(${name} PRODUCT_NAME "${name}")
+        target_sources(${name} PRIVATE ${ARGN})
+        target_include_directories(${name} PRIVATE
+            $<TARGET_PROPERTY:MultiMeter,INCLUDE_DIRECTORIES>)
+        target_compile_definitions(${name} PRIVATE
+            $<TARGET_PROPERTY:MultiMeter,COMPILE_DEFINITIONS>)
+        target_link_libraries(${name} PRIVATE MultiMeter)
+    endfunction()
+
+    multimeter_add_tool(MultiMeterTests
+        Tests/Main.cpp
         Tests/ProcessorTests.cpp
         Tests/LoudnessTests.cpp
         Tests/SpectrumTests.cpp)
 
-    # The tests link against the plugin's shared-code library, which already
-    # contains the JUCE modules, so they only borrow its include paths and
-    # definitions rather than compiling the modules a second time.
-    target_include_directories(MultiMeterTests PRIVATE
-        $<TARGET_PROPERTY:MultiMeter,INCLUDE_DIRECTORIES>)
-    target_compile_definitions(MultiMeterTests PRIVATE
-        $<TARGET_PROPERTY:MultiMeter,COMPILE_DEFINITIONS>)
-    target_link_libraries(MultiMeterTests PRIVATE MultiMeter)
-
     add_test(NAME MultiMeterTests COMMAND MultiMeterTests)
 
     # A development tool that saves a picture of the editor running a test signal
-    juce_add_console_app(MultiMeterSnapshot PRODUCT_NAME "MultiMeterSnapshot")
-    target_sources(MultiMeterSnapshot PRIVATE Tests/Snapshot.cpp)
-    target_include_directories(MultiMeterSnapshot PRIVATE
-        $<TARGET_PROPERTY:MultiMeter,INCLUDE_DIRECTORIES>)
-    target_compile_definitions(MultiMeterSnapshot PRIVATE
-        $<TARGET_PROPERTY:MultiMeter,COMPILE_DEFINITIONS>)
-    target_link_libraries(MultiMeterSnapshot PRIVATE MultiMeter)
+    multimeter_add_tool(MultiMeterSnapshot Tests/Snapshot.cpp)
 endif()

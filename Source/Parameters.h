@@ -13,37 +13,37 @@ namespace Parameters
     namespace ID
     {
         // "Scale Knob" is the ID that version 1 used, so it has to stay as it is
-        static const juce::String goniometerScale { "Scale Knob" };
-        static const juce::String decayRate { "decayRate" };
-        static const juce::String holdTime { "holdTime" };
-        static const juce::String averagerDuration { "averagerDuration" };
-        static const juce::String meterView { "meterView" };
-        static const juce::String histogramView { "histogramView" };
-        static const juce::String showTick { "showTick" };
-        static const juce::String mainView { "mainView" };
-        static const juce::String goniometerMode { "goniometerMode" };
-        static const juce::String goniometerPersistence { "goniometerPersistence" };
-        static const juce::String spectrumChannels { "spectrumChannels" };
-        static const juce::String spectrumTilt { "spectrumTilt" };
-        static const juce::String spectrumSmoothing { "spectrumSmoothing" };
-        static const juce::String spectrumResolution { "spectrumResolution" };
-        static const juce::String spectrumPeakHold { "spectrumPeakHold" };
-        static const juce::String loudnessTarget { "loudnessTarget" };
+        inline const juce::String goniometerScale { "Scale Knob" };
+        inline const juce::String decayRate { "decayRate" };
+        inline const juce::String holdTime { "holdTime" };
+        inline const juce::String averagerDuration { "averagerDuration" };
+        inline const juce::String meterView { "meterView" };
+        inline const juce::String histogramView { "histogramView" };
+        inline const juce::String showTick { "showTick" };
+        inline const juce::String mainView { "mainView" };
+        inline const juce::String goniometerMode { "goniometerMode" };
+        inline const juce::String goniometerPersistence { "goniometerPersistence" };
+        inline const juce::String spectrumChannels { "spectrumChannels" };
+        inline const juce::String spectrumTilt { "spectrumTilt" };
+        inline const juce::String spectrumSmoothing { "spectrumSmoothing" };
+        inline const juce::String spectrumResolution { "spectrumResolution" };
+        inline const juce::String spectrumPeakHold { "spectrumPeakHold" };
+        inline const juce::String loudnessTarget { "loudnessTarget" };
     }
 
     // The options of each choice parameter, and the values that they stand for
-    static const juce::StringArray decayRateNames { "-3dB/s", "-6dB/s", "-12dB/s", "-24dB/s", "-36dB/s" };
-    static constexpr std::array<float, 5> decayRatesDbPerSecond { 3.f, 6.f, 12.f, 24.f, 36.f };
+    inline const juce::StringArray decayRateNames { "-3dB/s", "-6dB/s", "-12dB/s", "-24dB/s", "-36dB/s" };
+    inline constexpr std::array<float, 5> decayRatesDbPerSecond { 3.f, 6.f, 12.f, 24.f, 36.f };
 
-    static const juce::StringArray holdTimeNames { "0s", "0.5s", "2s", "4s", "6s", "inf" };
-    static constexpr std::array<float, 6> holdTimesSeconds { 0.f, 0.5f, 2.f, 4.f, 6.f, std::numeric_limits<float>::infinity() };
+    inline const juce::StringArray holdTimeNames { "0s", "0.5s", "2s", "4s", "6s", "inf" };
+    inline constexpr std::array<float, 6> holdTimesSeconds { 0.f, 0.5f, 2.f, 4.f, 6.f, std::numeric_limits<float>::infinity() };
 
-    static const juce::StringArray averagerDurationNames { "100ms", "250ms", "500ms", "1000ms", "2000ms" };
-    static constexpr std::array<float, 5> averagerDurationsSeconds { 0.1f, 0.25f, 0.5f, 1.f, 2.f };
+    inline const juce::StringArray averagerDurationNames { "100ms", "250ms", "500ms", "1000ms", "2000ms" };
+    inline constexpr std::array<float, 5> averagerDurationsSeconds { 0.1f, 0.25f, 0.5f, 1.f, 2.f };
 
-    static const juce::StringArray meterViewNames { "Both", "Peak", "Avg" };
-    static const juce::StringArray histogramViewNames { "Parallel", "Stacked" };
-    static const juce::StringArray mainViewNames { "Goniometer", "Analyzer", "Spectrogram", "Histogram", "Loudness" };
+    inline const juce::StringArray meterViewNames { "Both", "Peak", "Avg" };
+    inline const juce::StringArray histogramViewNames { "Parallel", "Stacked" };
+    inline const juce::StringArray mainViewNames { "Goniometer", "Analyzer", "Spectrogram", "Histogram", "Loudness" };
 
     enum MainView
     {
@@ -55,7 +55,7 @@ namespace Parameters
     };
 
     // The options of the views are named so that a combo box needs no label beside it
-    static const juce::StringArray goniometerModeNames { "Lissajous", "Polar" };
+    inline const juce::StringArray goniometerModeNames { "Lissajous", "Polar" };
 
     enum GoniometerMode
     {
@@ -63,23 +63,23 @@ namespace Parameters
         polarMode
     };
 
-    static const juce::StringArray goniometerPersistenceNames { "No persistence", "Short persistence", "Long persistence" };
-    static constexpr std::array<float, 3> goniometerPersistenceSeconds { 0.f, 0.15f, 0.6f };
+    inline const juce::StringArray goniometerPersistenceNames { "No persistence", "Short persistence", "Long persistence" };
+    inline constexpr std::array<float, 3> goniometerPersistenceSeconds { 0.f, 0.15f, 0.6f };
 
-    static const juce::StringArray spectrumChannelsNames { "Left / Right", "Mid / Side" };
+    inline const juce::StringArray spectrumChannelsNames { "Left / Right", "Mid / Side" };
 
-    static const juce::StringArray spectrumTiltNames { "Tilt 0 dB/oct", "Tilt 3 dB/oct", "Tilt 4.5 dB/oct", "Tilt 6 dB/oct" };
-    static constexpr std::array<float, 4> spectrumTiltsDbPerOctave { 0.f, 3.f, 4.5f, 6.f };
+    inline const juce::StringArray spectrumTiltNames { "Tilt 0 dB/oct", "Tilt 3 dB/oct", "Tilt 4.5 dB/oct", "Tilt 6 dB/oct" };
+    inline constexpr std::array<float, 4> spectrumTiltsDbPerOctave { 0.f, 3.f, 4.5f, 6.f };
 
-    static const juce::StringArray spectrumSmoothingNames { "No smoothing", "1/12 octave", "1/6 octave", "1/3 octave" };
-    static constexpr std::array<float, 4> spectrumSmoothingOctaves { 0.f, 1.f / 12.f, 1.f / 6.f, 1.f / 3.f };
+    inline const juce::StringArray spectrumSmoothingNames { "No smoothing", "1/12 octave", "1/6 octave", "1/3 octave" };
+    inline constexpr std::array<float, 4> spectrumSmoothingOctaves { 0.f, 1.f / 12.f, 1.f / 6.f, 1.f / 3.f };
 
-    static const juce::StringArray spectrumResolutionNames { "FFT 2048", "FFT 4096", "FFT 8192", "FFT 16384" };
-    static constexpr std::array<int, 4> spectrumResolutionOrders { 11, 12, 13, 14 };
+    inline const juce::StringArray spectrumResolutionNames { "FFT 2048", "FFT 4096", "FFT 8192", "FFT 16384" };
+    inline constexpr std::array<int, 4> spectrumResolutionOrders { 11, 12, 13, 14 };
 
     // The loudness that common platforms and standards ask for. 0 stands for no target.
-    static const juce::StringArray loudnessTargetNames { "No target", "-14 LUFS Streaming", "-16 LUFS Podcast", "-23 LUFS EBU R 128", "-24 LKFS ATSC A/85" };
-    static constexpr std::array<float, 5> loudnessTargetsLufs { 0.f, -14.f, -16.f, -23.f, -24.f };
+    inline const juce::StringArray loudnessTargetNames { "No target", "-14 LUFS Streaming", "-16 LUFS Podcast", "-23 LUFS EBU R 128", "-24 LKFS ATSC A/85" };
+    inline constexpr std::array<float, 5> loudnessTargetsLufs { 0.f, -14.f, -16.f, -23.f, -24.f };
 
     // Looks up the value of a choice parameter, whatever index it is given
     template<typename Table>
@@ -92,8 +92,8 @@ namespace Parameters
     // The saved state is the APVTS tree as XML, tagged with this version number.
     // Raise it whenever the meaning of a saved value changes, and migrate older
     // states in MultiMeterAudioProcessor::setStateInformation().
-    static constexpr int currentStateVersion = 2;
-    static const juce::Identifier stateVersionProperty { "stateVersion" };
+    inline constexpr int currentStateVersion = 2;
+    inline const juce::Identifier stateVersionProperty { "stateVersion" };
 
     //==============================================================================
     // Version 1 saved its settings as a raw binary stream rather than as XML.
@@ -106,7 +106,7 @@ namespace Parameters
     };
 
     // The size of the version 1 stream: a float, two ints, a bool, and three ints
-    static constexpr int legacyStateSizeInBytes = 4 + 4 + 4 + 1 + 4 + 4 + 4;
+    inline constexpr int legacyStateSizeInBytes = 4 + 4 + 4 + 1 + 4 + 4 + 4;
 
     // Reads a version 1 state. Returns false if the data is not one.
     inline bool readLegacyState(const void* data, int sizeInBytes, LegacyState& state)

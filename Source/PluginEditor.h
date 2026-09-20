@@ -57,6 +57,14 @@ private:
     // Lays out the histograms according to the histogram view parameter
     void layoutHistograms(int histogramViewId);
 
+    // The current value of a parameter: as it is, as the index of a choice, or as a switch
+    float getValue(const juce::String& parameterID) const;
+    int getChoice(const juce::String& parameterID) const;
+    bool isOn(const juce::String& parameterID) const;
+
+    // Adds a label with its text, in the color that all the labels share
+    void addLabel(juce::Label& label, const juce::String& text);
+
     // This reference is provided as a quick way for your editor to access the processor object that created it
     MultiMeterAudioProcessor& audioProcessor;
     Goniometer gonioMeter;
@@ -95,21 +103,6 @@ private:
     std::unique_ptr<APVTS::ComboBoxAttachment> levelMeterDecayAttachment, averagerDurationAttachment, holdTimeAttachment;
     APVTS::ButtonAttachment tickDisplayAttachment;
     juce::ParameterAttachment mainViewAttachment, meterViewAttachment, histogramViewAttachment;
-
-    // The parameter values that the meters read in every update
-    std::atomic<float>* scaleParameter = nullptr;
-    std::atomic<float>* decayRateParameter = nullptr;
-    std::atomic<float>* holdTimeParameter = nullptr;
-    std::atomic<float>* meterViewParameter = nullptr;
-    std::atomic<float>* showTickParameter = nullptr;
-    std::atomic<float>* goniometerModeParameter = nullptr;
-    std::atomic<float>* goniometerPersistenceParameter = nullptr;
-    std::atomic<float>* spectrumChannelsParameter = nullptr;
-    std::atomic<float>* spectrumTiltParameter = nullptr;
-    std::atomic<float>* spectrumSmoothingParameter = nullptr;
-    std::atomic<float>* spectrumResolutionParameter = nullptr;
-    std::atomic<float>* spectrumPeakHoldParameter = nullptr;
-    std::atomic<float>* loudnessTargetParameter = nullptr;
 
     // Set by the reset hold button, and cleared by the next update
     bool resetHoldRequested = false;

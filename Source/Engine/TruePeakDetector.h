@@ -5,6 +5,7 @@
 #include <atomic>
 #include <cmath>
 #include <vector>
+#include "AtomicMax.h"
 
 //==============================================================================
 // Measures the true peak of the signal on the audio thread, in the manner of
@@ -174,14 +175,6 @@ private:
 
         for (auto& value : peak) value.store(0.f, std::memory_order_relaxed);
         for (auto& value : maxPeak) value.store(0.f, std::memory_order_relaxed);
-    }
-
-    static void storeMax(std::atomic<float>& target, float value)
-    {
-        float current = target.load(std::memory_order_relaxed);
-        while (value > current && ! target.compare_exchange_weak(current, value, std::memory_order_relaxed))
-        {
-        }
     }
 
     // Audio thread state

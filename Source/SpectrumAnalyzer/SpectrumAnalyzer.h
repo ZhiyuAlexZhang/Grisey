@@ -135,6 +135,22 @@ struct SpectrumAnalyzer : juce::Component
     // is as random as the noise, so the strip only speaks where there is signal.
     static constexpr float correlationQuietDb = -72.f;
 
+    // How the spectra are shown, which the editor reads from the parameters in every update
+    struct Settings
+    {
+        bool midSide = false;          // Mid and side in place of left and right
+        float tiltDbPerOctave = 0.f;
+        float smoothingOctaves = 0.f;
+        bool peakHold = false;
+
+        bool operator==(const Settings& other) const
+        {
+            return midSide == other.midSide && peakHold == other.peakHold
+                && juce::exactlyEqual(tiltDbPerOctave, other.tiltDbPerOctave)
+                && juce::exactlyEqual(smoothingOctaves, other.smoothingOctaves);
+        }
+    };
+
     // Constructor
     SpectrumAnalyzer(juce::AudioProcessorValueTreeState&, SpectrumSource&);
 
@@ -152,7 +168,7 @@ struct SpectrumAnalyzer : juce::Component
 
     // Lays out the curves again from the source's spectra, called by the editor once per frame.
     // hasNewSpectra says whether the source has analyzed new audio since the last call.
-    void update(bool hasNewSpectra, bool midSide, float tiltDbPerOctave, float smoothingOctaves, bool peakHold);
+    void update(bool hasNewSpectra, const Settings& newSettings);
 
 private:
     // Builds the path of a curve within the analysis area. A closed path runs along the bottom for filling.
@@ -187,6 +203,5 @@ private:
 
     // The settings that the curves were last laid out with
     SpectrumEngine::Display display;
-    bool showsMidSide = false;
-    bool showsPeakHold = false;
+    Settings settings;
 };

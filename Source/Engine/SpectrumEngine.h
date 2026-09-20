@@ -130,7 +130,10 @@ public:
     void render(Curve curve, const Display& display, double sampleRate, std::vector<float>& decibels)
     {
         decibels.resize(static_cast<size_t>(display.numPoints));
-        accumulate([this, curve](size_t bin) { return powerOf(curve, bin); });
+
+        // Only the band averages of smoothing need the running total
+        if (display.smoothingOctaves > 0.f)
+            accumulate([this, curve](size_t bin) { return powerOf(curve, bin); });
 
         forEachPoint(display, sampleRate, [&](int point, double frequency, double lowBin, double highBin, double cellLowBin, double cellHighBin)
         {

@@ -1,6 +1,7 @@
 
 #pragma once
-#include "../GonioMeter/Goniometer.h"
+#include <JuceHeader.h>
+#include "../Constants.h"
 using namespace juce;
 
 //==============================================================================
