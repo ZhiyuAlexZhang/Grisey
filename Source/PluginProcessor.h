@@ -15,6 +15,8 @@
 #include <JuceHeader.h>
 #include "Parameters.h"
 #include "Engine/MeterEngine.h"
+#include "Engine/LoudnessMeter.h"
+#include "Engine/TruePeakDetector.h"
 #include "Engine/SampleRingBuffer.h"
 
 using namespace juce;
@@ -65,6 +67,15 @@ public:
 
     // Measures peak, RMS and correlation on the audio thread
     MeterEngine meterEngine;
+
+    // Measures loudness to ITU-R BS.1770 and EBU R 128 on the audio thread
+    LoudnessMeter loudnessMeter;
+
+    // Measures the true peak on the audio thread
+    TruePeakDetector truePeakDetector;
+
+    // Restarts the integrated loudness, the loudness range and the maximum true peak
+    void resetLoudness();
 
     // Carries every sample to the goniometer and the spectrum analyzer
     SampleRingBuffer sampleRingBuffer;

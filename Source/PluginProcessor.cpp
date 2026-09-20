@@ -104,6 +104,8 @@ void MultiMeterAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
     juce::ignoreUnused(samplesPerBlock);
 
     meterEngine.prepare(sampleRate);
+    loudnessMeter.prepare(sampleRate);
+    truePeakDetector.prepare(sampleRate);
     sampleRingBuffer.reset();
 
     #if USE_OSC
@@ -191,6 +193,8 @@ void MultiMeterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
 
         // Every sample is measured here, the editor only reads the results
         meterEngine.process(left, right, numSamples);
+        loudnessMeter.process(left, right, numSamples);
+        truePeakDetector.process(left, right, numSamples);
         sampleRingBuffer.write(left, right, numSamples);
     }
 
@@ -198,6 +202,13 @@ void MultiMeterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
     // Clear the audio buffer if oscillator synthesis is used
     buffer.clear();
 #endif
+}
+
+void MultiMeterAudioProcessor::resetLoudness()
+{
+    // The meters restart themselves at the start of the next block
+    loudnessMeter.requestReset();
+    truePeakDetector.requestReset();
 }
 
 //==============================================================================
