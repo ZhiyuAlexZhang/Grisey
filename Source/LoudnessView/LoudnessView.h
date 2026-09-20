@@ -53,9 +53,12 @@ private:
     float maxTruePeak = NEGATIVE_INFINITY;
     float target = 0.f;
 
-    // The peak to short-term loudness ratio needs the true peak of the same 3 s as the short-term loudness
-    std::array<float, 180> recentTruePeaks;
+    // The peak to short-term loudness ratio needs the true peak of the same 3 s as the short-term loudness.
+    // The peaks are kept as the maximum of each 100 ms, so the 3 s hold however often the editor updates.
+    static constexpr double truePeakSlotSeconds = 0.1;
+    std::array<float, 30> recentTruePeaks;
     size_t recentTruePeakIndex = 0;
+    double secondsInTruePeakSlot = 0.0;
     float recentTruePeak = NEGATIVE_INFINITY;
 
     std::array<HistoryPoint, historyLength> history;

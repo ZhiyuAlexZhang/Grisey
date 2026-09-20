@@ -40,9 +40,16 @@ void LoudnessView::update(const LoudnessMeter::Readings& newReadings, float true
     maxTruePeak = maxTruePeakDb;
     target = targetLufs;
 
-    // Keep the true peaks of the last 3 s
-    recentTruePeaks[recentTruePeakIndex] = truePeakDb;
-    recentTruePeakIndex = (recentTruePeakIndex + 1) % recentTruePeaks.size();
+    // Keep the true peaks of the last 3 s, moving on to the next slot every 100 ms
+    secondsInTruePeakSlot += (double)elapsedSeconds;
+    while (secondsInTruePeakSlot >= truePeakSlotSeconds)
+    {
+        secondsInTruePeakSlot -= truePeakSlotSeconds;
+        recentTruePeakIndex = (recentTruePeakIndex + 1) % recentTruePeaks.size();
+        recentTruePeaks[recentTruePeakIndex] = NEGATIVE_INFINITY;
+    }
+
+    recentTruePeaks[recentTruePeakIndex] = juce::jmax(recentTruePeaks[recentTruePeakIndex], truePeakDb);
     recentTruePeak = *std::max_element(recentTruePeaks.begin(), recentTruePeaks.end());
 
     if (audioRunning)
