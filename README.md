@@ -8,27 +8,36 @@ MultiMeter, a cutting-edge AU/VST3/CLAP audio analyzer, caters to audio engineer
 
 ## Features
 
-### General Metering
-- Employs a high-performance FIFO (First In, First Out) buffer to handle audio data between DSP and GUI threads.
-- Features comboboxes and sliders to personalize metering behavior.
-
 ### Level Meter
-- Provides instantaneous visual feedback of audio signal levels with numeric value displays in decibels.
-- Supports both Root Mean Squared (RMS) and peak readings.
-- Enables user adjustment of the decay rate of meter ticks with multiple responsiveness options.
-- Allows holding peak tick values for a specified duration to enhance the analysis of transient audio materials.
+- Peak and RMS levels for each channel, measured on the audio thread from every sample, so that no peak is missed between frames.
+- Numeric readouts in decibels, adjustable decay rate, and peak ticks that can be held for a set time or forever.
 
-### FFT Spectrogram Analyzer
-- Presents a high-resolution Fast Fourier Transform (FFT) spectrum with logarithmically scaled frequency bins, displaying the frequency content over time with a curve of all frequency components in the incoming signal and enabling in-depth spectral balance analysis.
+### Loudness
+- Momentary, short-term, and integrated loudness, and loudness range, to ITU-R BS.1770-4 and EBU R 128.
+- True peak with 4x oversampling, the peak to loudness ratio (PLR), and the peak to short-term loudness ratio (PSR).
+- A history graph, and delivery targets for streaming, podcasts, EBU R 128, and ATSC A/85.
+- Tested against the synthesized signals of EBU Tech 3341 and Tech 3342.
 
-### Histogram
-- Visualizes the distribution of signal level dynamics over time.
+### Spectrum Analyzer
+- FFT sizes from 2048 to 16384 points, scaled so that a full-scale sine reads 0 dB.
+- Left / right or mid / side, adjustable tilt, fractional-octave smoothing, peak hold, and freeze.
+- A correlation strip along the bottom shows, band by band, where the channels are in phase and where they are out of phase.
 
-### Correlation Meter
-- Provides instantaneous and average readings of the phase correlation between left and right audio channels, ranging from +1 (fully in-phase) to 0 (wide stereo) to -1 (out-of-phase), for identifying phase issues and ensuring mono compatibility.
+### Spectrogram
+- Frequency content over time, on a logarithmic frequency axis.
 
 ### Goniometer
-- Converts L/R audio signals into Mid/Side representations that provide insights into the coherence of the stereo field distribution and phase differences between the left and right channels.
+- The stereo image with phosphor-style persistence, as a Lissajous or a polar plot.
+
+### Correlation Meter
+- Fast and slow readings of the phase correlation between the channels, from +1 (in phase) through 0 (wide stereo) to -1 (out of phase), for checking mono compatibility.
+
+### Histogram
+- The peak and RMS levels over time.
+
+### Formats and settings
+- VST3, AU, CLAP, and Standalone. Mono and stereo.
+- Every setting is saved with the session, and sessions saved by version 1 still load.
 
 ## Building
 
@@ -55,8 +64,11 @@ ctest --test-dir build -C Release --output-on-failure
 To save a picture of the editor running a test signal, without opening a host:
 
 ```bash
-build/MultiMeterSnapshot_artefacts/Release/MultiMeterSnapshot editor.png
+build/MultiMeterSnapshot_artefacts/Release/MultiMeterSnapshot editor.png 4
 ```
+
+The number picks the view (0 goniometer, 1 analyzer, 2 spectrogram, 3 histogram, 4 loudness),
+and parameters can be set by their IDs, for example `spectrumChannels=1`.
 
 ## Roadmap
 

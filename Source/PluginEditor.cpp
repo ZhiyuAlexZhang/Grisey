@@ -16,7 +16,9 @@
 MultiMeterAudioProcessorEditor::MultiMeterAudioProcessorEditor(MultiMeterAudioProcessor& p) :
     AudioProcessorEditor(&p),
     audioProcessor(p),
-    spectrumAnalyzer(audioProcessor),
+    spectrumSource(audioProcessor),
+    spectrumAnalyzer(audioProcessor.apvts, spectrumSource),
+    spectrogram(spectrumSource),
     scaleKnobSlider(*audioProcessor.apvts.getParameter(Parameters::ID::goniometerScale), "%"),
     scaleKnobSliderAttachment(audioProcessor.apvts, Parameters::ID::goniometerScale, scaleKnobSlider),
     tickDisplayAttachment(audioProcessor.apvts, Parameters::ID::showTick, tickDisplay),
@@ -34,9 +36,18 @@ MultiMeterAudioProcessorEditor::MultiMeterAudioProcessorEditor(MultiMeterAudioPr
     holdTimeParameter = apvts.getRawParameterValue(Parameters::ID::holdTime);
     meterViewParameter = apvts.getRawParameterValue(Parameters::ID::meterView);
     showTickParameter = apvts.getRawParameterValue(Parameters::ID::showTick);
+    goniometerModeParameter = apvts.getRawParameterValue(Parameters::ID::goniometerMode);
+    goniometerPersistenceParameter = apvts.getRawParameterValue(Parameters::ID::goniometerPersistence);
+    spectrumChannelsParameter = apvts.getRawParameterValue(Parameters::ID::spectrumChannels);
+    spectrumTiltParameter = apvts.getRawParameterValue(Parameters::ID::spectrumTilt);
+    spectrumSmoothingParameter = apvts.getRawParameterValue(Parameters::ID::spectrumSmoothing);
+    spectrumResolutionParameter = apvts.getRawParameterValue(Parameters::ID::spectrumResolution);
+    spectrumPeakHoldParameter = apvts.getRawParameterValue(Parameters::ID::spectrumPeakHold);
+    loudnessTargetParameter = apvts.getRawParameterValue(Parameters::ID::loudnessTarget);
 
-    // The menu switch changes between the three visuals (goniometer, spectrum analyzer and histogram)
+    // The menu switch changes between the visuals
     addAndMakeVisible(menuViewSwitch);
+    menuViewSwitch.setOptions(Parameters::mainViewNames);
     menuViewSwitch.onChange = [this](int id) { mainViewAttachment.setValueAsCompleteGesture((float)id); };
 
     // Histogram view button setup
@@ -53,6 +64,33 @@ MultiMeterAudioProcessorEditor::MultiMeterAudioProcessorEditor(MultiMeterAudioPr
     addChildComponent(gonioMeter);
     addAndMakeVisible(correlationMeter);
     addChildComponent(spectrumAnalyzer);
+    addChildComponent(spectrogram);
+    addChildComponent(loudnessView);
+
+    // The options of the views, each of which shows with the views that it belongs to
+    {
+        using namespace Parameters;
+        addAndMakeVisible(optionsRow);
+
+        optionsRow.addChoice(OptionsRow::views({ goniometerView }), apvts, ID::goniometerMode, 100);
+        optionsRow.addChoice(OptionsRow::views({ goniometerView }), apvts, ID::goniometerPersistence, 140);
+
+        optionsRow.addChoice(OptionsRow::views({ analyzerView }), apvts, ID::spectrumChannels, 96);
+        optionsRow.addChoice(OptionsRow::views({ analyzerView, spectrogramView }), apvts, ID::spectrumTilt, 112);
+        optionsRow.addChoice(OptionsRow::views({ analyzerView }), apvts, ID::spectrumSmoothing, 104);
+        optionsRow.addChoice(OptionsRow::views({ analyzerView, spectrogramView }), apvts, ID::spectrumResolution, 84);
+        optionsRow.addToggle(OptionsRow::views({ analyzerView }), apvts, ID::spectrumPeakHold, "Hold", 44);
+
+        // Freezing is for a moment's look, so it is not a setting that is saved
+        freezeButton = &optionsRow.addButton(OptionsRow::views({ analyzerView, spectrogramView }), "Freeze", 52, true, [] {});
+
+        optionsRow.addChoice(OptionsRow::views({ Parameters::loudnessView }), apvts, ID::loudnessTarget, 170);
+        optionsRow.addButton(OptionsRow::views({ Parameters::loudnessView }), "Reset", 60, false, [this]
+        {
+            audioProcessor.resetLoudness();
+            loudnessView.clearHistory();
+        });
+    }
 
     // Scale knob setup
     addAndMakeVisible(scaleKnobSlider);
@@ -123,7 +161,7 @@ MultiMeterAudioProcessorEditor::MultiMeterAudioProcessorEditor(MultiMeterAudioPr
     setLookAndFeel(&lookAndFeel);
 
     // Set the initial size of the editor
-    setSize(800, 400);
+    setSize(800, 430);
 
     // Bring the custom controls in line with their parameters, now that the layout is known
     mainViewAttachment.sendInitialUpdate();
@@ -151,12 +189,15 @@ void MultiMeterAudioProcessorEditor::resized()
 {
     const int gonioMeterWidth = 285;
 
-    menuViewSwitch.setBounds(0, 0, 800, 20);
+    menuViewSwitch.setBounds(0, 0, getWidth(), 20);
 
-    auto visualsRoom = getBounds();
+    auto visualsRoom = getLocalBounds();
     visualsRoom.removeFromTop(20);
     auto meterRoom  = visualsRoom.removeFromRight(getWidth() / 3);
-    auto controlRoom = visualsRoom.removeFromBottom(visualsRoom.getHeight() / 4);
+    auto controlRoom = visualsRoom.removeFromBottom(95);
+
+    // The options of the view sit between the view and the controls
+    optionsRow.setBounds(visualsRoom.removeFromBottom(30).reduced(14, 2));
     auto correlationRoom = meterRoom.removeFromBottom(meterRoom.getHeight() / 5);
 
     auto stackedSpace = visualsRoom.reduced(26,20);
@@ -169,6 +210,8 @@ void MultiMeterAudioProcessorEditor::resized()
 
     // Visualizers
     spectrumAnalyzer.setBounds(visualsRoom.reduced(20));
+    spectrogram.setBounds(visualsRoom.reduced(26, 20));
+    loudnessView.setBounds(visualsRoom.reduced(26, 20));
     gonioMeter.setBounds(visualsRoom.getCentreX() - gonioMeterWidth / 2, visualsRoom.getCentreY() - gonioMeterWidth / 2, gonioMeterWidth, gonioMeterWidth);
 
     layoutHistograms(histogramViewButton.getSelectedId());
@@ -258,10 +301,10 @@ void MultiMeterAudioProcessorEditor::updateMeters(float elapsedSeconds)
         lastTotalWritten = totalWritten;
         lastAudioTime = lastUpdateTime;
     }
-    else if (lastUpdateTime - lastAudioTime > silenceTimeoutSeconds)
-    {
+
+    const bool audioRunning = lastUpdateTime - lastAudioTime <= silenceTimeoutSeconds;
+    if (!audioRunning)
         readings = {};
-    }
 
     // Convert the readings to decibels
     // The 2nd parameter of juce::Decibels::gainToDecibels() defines what "negative infinity" is
@@ -290,6 +333,24 @@ void MultiMeterAudioProcessorEditor::updateMeters(float elapsedSeconds)
 
     correlationMeter.update(readings.correlationFast, readings.correlationSlow);
 
+    // The loudness and the true peak are read in every update, whichever view is showing,
+    // because reading the true peak is what restarts its measurement
+    {
+        auto loudness = audioProcessor.loudnessMeter.read();
+        const auto truePeak = audioProcessor.truePeakDetector.read();
+
+        // The momentary and short-term loudness describe the present, so they go quiet with the audio.
+        // The integrated loudness and the range describe the programme so far, so they stay.
+        if (!audioRunning)
+            loudness.momentary = loudness.shortTerm = LoudnessMeter::silence;
+
+        const float truePeakDb = juce::Decibels::gainToDecibels(juce::jmax(truePeak.peak[0], truePeak.peak[1]), NEGATIVE_INFINITY);
+        const float maxTruePeakDb = juce::Decibels::gainToDecibels(juce::jmax(truePeak.maxPeak[0], truePeak.maxPeak[1]), NEGATIVE_INFINITY);
+        const float target = Parameters::valueAt(Parameters::loudnessTargetsLufs, juce::roundToInt(loudnessTargetParameter->load()));
+
+        loudnessView.update(loudness, audioRunning ? truePeakDb : NEGATIVE_INFINITY, maxTruePeakDb, target, audioRunning, elapsedSeconds);
+    }
+
     // Only the visible view needs the samples themselves
     if (gonioMeter.isVisible())
     {
@@ -297,14 +358,30 @@ void MultiMeterAudioProcessorEditor::updateMeters(float elapsedSeconds)
         // This value is used as a gain factor in the updateCoeff function of the gonioMeter
         gonioMeter.updateCoeff(scaleParameter->load() / 100.f);
 
-        // Keep the previous plot if the audio thread overwrote the samples during the copy
-        auto& scopeBuffer = gonioMeter.getBuffer();
-        if (audioProcessor.sampleRingBuffer.readLatest(scopeBuffer.getWritePointer(0), scopeBuffer.getWritePointer(1), scopeBuffer.getNumSamples()))
-            gonioMeter.repaint();
+        const auto mode = juce::roundToInt(goniometerModeParameter->load()) == Parameters::polarMode ? Goniometer::polar : Goniometer::lissajous;
+        const float persistence = Parameters::valueAt(Parameters::goniometerPersistenceSeconds, juce::roundToInt(goniometerPersistenceParameter->load()));
+        gonioMeter.update(audioProcessor.sampleRingBuffer, elapsedSeconds, mode, persistence);
     }
 
-    if (spectrumAnalyzer.isVisible())
-        spectrumAnalyzer.update();
+    if (spectrumAnalyzer.isVisible() || spectrogram.isVisible())
+    {
+        // While frozen the spectra stay as they are, but a change of setting still shows
+        const bool frozen = freezeButton != nullptr && freezeButton->getToggleState();
+        const int order = Parameters::valueAt(Parameters::spectrumResolutionOrders, juce::roundToInt(spectrumResolutionParameter->load()));
+        const float tilt = Parameters::valueAt(Parameters::spectrumTiltsDbPerOctave, juce::roundToInt(spectrumTiltParameter->load()));
+        const bool hasNewSpectra = !frozen && spectrumSource.update(elapsedSeconds, order);
+
+        if (spectrumAnalyzer.isVisible())
+        {
+            const bool midSide = juce::roundToInt(spectrumChannelsParameter->load()) == 1;
+            const float smoothing = Parameters::valueAt(Parameters::spectrumSmoothingOctaves, juce::roundToInt(spectrumSmoothingParameter->load()));
+            spectrumAnalyzer.update(hasNewSpectra, midSide, tilt, smoothing, spectrumPeakHoldParameter->load() > 0.5f);
+        }
+        else if (hasNewSpectra)
+        {
+            spectrogram.addColumn(tilt);
+        }
+    }
 }
 
 void MultiMeterAudioProcessorEditor::showMainView(int viewId)
@@ -314,6 +391,9 @@ void MultiMeterAudioProcessorEditor::showMainView(int viewId)
     // Based on the view ID one of the visuals is set to visible and the others are hidden
     gonioMeter.setVisible(viewId == Parameters::goniometerView);
     spectrumAnalyzer.setVisible(viewId == Parameters::analyzerView);
+    spectrogram.setVisible(viewId == Parameters::spectrogramView);
+    loudnessView.setVisible(viewId == Parameters::loudnessView);
+    optionsRow.showView(viewId);
     peakHistogram.setVisible(viewId == Parameters::histogramView);
     rmsHistogram.setVisible(viewId == Parameters::histogramView);
 }

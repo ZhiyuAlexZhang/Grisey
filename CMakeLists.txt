@@ -42,6 +42,8 @@ target_sources(MultiMeter PRIVATE
     Source/GonioMeter/Goniometer.cpp
     Source/Histogram/Histogram.cpp
     Source/LevelMeter/LevelMeter.cpp
+    Source/LoudnessView/LoudnessView.cpp
+    Source/Spectrogram/Spectrogram.cpp
     Source/SpectrumAnalyzer/SpectrumAnalyzer.cpp)
 
 target_compile_definitions(MultiMeter PUBLIC

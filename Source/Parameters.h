@@ -21,6 +21,14 @@ namespace Parameters
         static const juce::String histogramView { "histogramView" };
         static const juce::String showTick { "showTick" };
         static const juce::String mainView { "mainView" };
+        static const juce::String goniometerMode { "goniometerMode" };
+        static const juce::String goniometerPersistence { "goniometerPersistence" };
+        static const juce::String spectrumChannels { "spectrumChannels" };
+        static const juce::String spectrumTilt { "spectrumTilt" };
+        static const juce::String spectrumSmoothing { "spectrumSmoothing" };
+        static const juce::String spectrumResolution { "spectrumResolution" };
+        static const juce::String spectrumPeakHold { "spectrumPeakHold" };
+        static const juce::String loudnessTarget { "loudnessTarget" };
     }
 
     // The options of each choice parameter, and the values that they stand for
@@ -35,14 +43,43 @@ namespace Parameters
 
     static const juce::StringArray meterViewNames { "Both", "Peak", "Avg" };
     static const juce::StringArray histogramViewNames { "Parallel", "Stacked" };
-    static const juce::StringArray mainViewNames { "Goniometer", "Analyzer", "Histogram" };
+    static const juce::StringArray mainViewNames { "Goniometer", "Analyzer", "Spectrogram", "Histogram", "Loudness" };
 
     enum MainView
     {
         goniometerView,
         analyzerView,
-        histogramView
+        spectrogramView,
+        histogramView,
+        loudnessView
     };
+
+    // The options of the views are named so that a combo box needs no label beside it
+    static const juce::StringArray goniometerModeNames { "Lissajous", "Polar" };
+
+    enum GoniometerMode
+    {
+        lissajousMode,
+        polarMode
+    };
+
+    static const juce::StringArray goniometerPersistenceNames { "No persistence", "Short persistence", "Long persistence" };
+    static constexpr std::array<float, 3> goniometerPersistenceSeconds { 0.f, 0.15f, 0.6f };
+
+    static const juce::StringArray spectrumChannelsNames { "Left / Right", "Mid / Side" };
+
+    static const juce::StringArray spectrumTiltNames { "Tilt 0 dB/oct", "Tilt 3 dB/oct", "Tilt 4.5 dB/oct", "Tilt 6 dB/oct" };
+    static constexpr std::array<float, 4> spectrumTiltsDbPerOctave { 0.f, 3.f, 4.5f, 6.f };
+
+    static const juce::StringArray spectrumSmoothingNames { "No smoothing", "1/12 octave", "1/6 octave", "1/3 octave" };
+    static constexpr std::array<float, 4> spectrumSmoothingOctaves { 0.f, 1.f / 12.f, 1.f / 6.f, 1.f / 3.f };
+
+    static const juce::StringArray spectrumResolutionNames { "FFT 2048", "FFT 4096", "FFT 8192", "FFT 16384" };
+    static constexpr std::array<int, 4> spectrumResolutionOrders { 11, 12, 13, 14 };
+
+    // The loudness that common platforms and standards ask for. 0 stands for no target.
+    static const juce::StringArray loudnessTargetNames { "No target", "-14 LUFS Streaming", "-16 LUFS Podcast", "-23 LUFS EBU R 128", "-24 LKFS ATSC A/85" };
+    static constexpr std::array<float, 5> loudnessTargetsLufs { 0.f, -14.f, -16.f, -23.f, -24.f };
 
     // Looks up the value of a choice parameter, whatever index it is given
     template<typename Table>
@@ -122,6 +159,17 @@ namespace Parameters
         layout.add(std::make_unique<Choice>(juce::ParameterID { ID::meterView, 2 }, "Level Meter Display", meterViewNames, 0, display));
         layout.add(std::make_unique<Choice>(juce::ParameterID { ID::histogramView, 2 }, "Histogram Display", histogramViewNames, 0, display));
         layout.add(std::make_unique<Choice>(juce::ParameterID { ID::mainView, 2 }, "View", mainViewNames, analyzerView, display));
+
+        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::goniometerMode, 2 }, "Goniometer Mode", goniometerModeNames, lissajousMode, display));
+        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::goniometerPersistence, 2 }, "Goniometer Persistence", goniometerPersistenceNames, 1, display));
+        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::spectrumChannels, 2 }, "Analyzer Channels", spectrumChannelsNames, 0, display));
+        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::spectrumTilt, 2 }, "Analyzer Tilt", spectrumTiltNames, 2, display));
+        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::spectrumSmoothing, 2 }, "Analyzer Smoothing", spectrumSmoothingNames, 2, display));
+        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::spectrumResolution, 2 }, "Analyzer Resolution", spectrumResolutionNames, 1, display));
+        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::loudnessTarget, 2 }, "Loudness Target", loudnessTargetNames, 1, display));
+
+        layout.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID { ID::spectrumPeakHold, 2 }, "Analyzer Peak Hold", false,
+            juce::AudioParameterBoolAttributes().withAutomatable(false)));
 
         layout.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID { ID::showTick, 2 }, "Tick Display", true,
             juce::AudioParameterBoolAttributes().withAutomatable(false)));

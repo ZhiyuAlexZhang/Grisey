@@ -245,26 +245,34 @@ private:
 };
 
 //==============================================================================
-// This class represents a menu for switching between three different views: Goniometer, Spectrum Analyzer, and Histogram
+// This class represents a menu for switching between the views
 class SwitchButton : public Component, private Button::Listener {
 private:
     // ID representing the currently selected switch option
-    int switchId{ 1 };
+    int switchId{ 0 };
 
 public:
     // Called with the ID of the view that the user has clicked
     std::function<void(int)> onChange;
 
-    // Constructor initializes the menu buttons and sets up their appearance and behavior
+    // Constructor sets up the appearance, the menu buttons are added with setOptions
     SwitchButton() {
         setLookAndFeel(&lookAndFeel);
+    }
 
-        // Setting up button labels
-        Goniometer.setButtonText("GONIOMETER");
-        Spectrum.setButtonText("ANALYZER");
-        Histogram.setButtonText("HISTOGRAM");
+    // Destructor resets the look and feel
+    ~SwitchButton() override {
+        setLookAndFeel(nullptr);
+    }
 
-        for (auto* button : buttons) {
+    // Creates one menu button for each of the names, in the order of their view IDs
+    void setOptions(const StringArray& names) {
+        buttons.clear();
+
+        for (auto& name : names) {
+            auto* button = buttons.add(new ToggleButton());
+            button->setButtonText(name.toUpperCase());
+
             // Disabling toggling on click for the buttons
             button->setClickingTogglesState(false);
             button->addListener(this);
@@ -273,23 +281,17 @@ public:
             addAndMakeVisible(button);
         }
 
-        // Setting Spectrum as the default active button
         setSelection(switchId);
 
         // Updating the layout of the buttons
         updateButtonLayout();
     }
 
-    // Destructor resets the look and feel
-    ~SwitchButton() override {
-        setLookAndFeel(nullptr);
-    }
-
     // Sets the active view to the specified ID, without calling onChange
     void setSelection(int id) {
-        if (id >= 0 && id < (int)buttons.size()) {
-            for (int i = 0; i < (int)buttons.size(); ++i)
-                buttons[(size_t)i]->setToggleState(i == id, dontSendNotification);
+        if (id >= 0 && id < buttons.size()) {
+            for (int i = 0; i < buttons.size(); ++i)
+                buttons[i]->setToggleState(i == id, dontSendNotification);
 
             switchId = id;
         }
@@ -308,8 +310,8 @@ public:
 private:
     // Handles button clicks by disabling other options and updating the active switch ID
     void buttonClicked(Button* button) override {
-        for (int i = 0; i < (int)buttons.size(); ++i) {
-            if (buttons[(size_t)i] == button && i != switchId) {
+        for (int i = 0; i < buttons.size(); ++i) {
+            if (buttons[i] == button && i != switchId) {
                 setSelection(i);
 
                 if (onChange)
@@ -318,23 +320,23 @@ private:
         }
     }
 
-    // Toggle buttons representing the menu options
-    ToggleButton Goniometer, Spectrum, Histogram;
-
-    // The buttons in the order of their view IDs
-    std::array<ToggleButton*, 3> buttons { &Goniometer, &Spectrum, &Histogram };
+    // Toggle buttons representing the menu options, in the order of their view IDs
+    OwnedArray<ToggleButton> buttons;
 
     // Custom look and feel for the buttons
     CustomLook lookAndFeel;
 
     // Updates the layout of the menu buttons based on the component size
     void updateButtonLayout() {
-        auto buttonWidth = getWidth() / 3;
-        auto buttonHeight = getHeight();
+        if (buttons.isEmpty())
+            return;
 
-        Goniometer.setBounds(0, 0, buttonWidth, buttonHeight);
-        Spectrum.setBounds(buttonWidth, 0, buttonWidth, buttonHeight);
-        Histogram.setBounds(2 * buttonWidth, 0, buttonWidth, buttonHeight);
+        // The last button takes up whatever the division leaves over
+        auto bounds = getLocalBounds();
+        auto buttonWidth = getWidth() / buttons.size();
+
+        for (int i = 0; i < buttons.size(); ++i)
+            buttons[i]->setBounds(i == buttons.size() - 1 ? bounds : bounds.removeFromLeft(buttonWidth));
     }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SwitchButton)

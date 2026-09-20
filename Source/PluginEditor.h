@@ -14,9 +14,12 @@
 #include "Histogram/Histogram.h"
 #include "GonioMeter/Goniometer.h"
 #include "SpectrumAnalyzer/SpectrumAnalyzer.h"
+#include "Spectrogram/Spectrogram.h"
+#include "LoudnessView/LoudnessView.h"
 #include "LevelMeter/LevelMeter.h"
 #include "CorrelationMeter/CorrelationMeter.h"
 #include "Controls/Buttons.h"
+#include "Controls/OptionsRow.h"
 #include "Controls/Slider.h"
 
 //==============================================================================
@@ -58,7 +61,16 @@ private:
     MultiMeterAudioProcessor& audioProcessor;
     Goniometer gonioMeter;
     CorrelationMeter correlationMeter;
-    ResponseCurveComponent spectrumAnalyzer;
+
+    // The analyzer and the spectrogram draw the same spectra
+    SpectrumSource spectrumSource;
+    SpectrumAnalyzer spectrumAnalyzer;
+    Spectrogram spectrogram;
+    LoudnessView loudnessView;
+
+    // The controls of the view that is showing
+    OptionsRow optionsRow;
+    juce::Button* freezeButton = nullptr;
 
     ButtonsLook lookAndFeel;
     SwitchButton menuViewSwitch;
@@ -90,6 +102,14 @@ private:
     std::atomic<float>* holdTimeParameter = nullptr;
     std::atomic<float>* meterViewParameter = nullptr;
     std::atomic<float>* showTickParameter = nullptr;
+    std::atomic<float>* goniometerModeParameter = nullptr;
+    std::atomic<float>* goniometerPersistenceParameter = nullptr;
+    std::atomic<float>* spectrumChannelsParameter = nullptr;
+    std::atomic<float>* spectrumTiltParameter = nullptr;
+    std::atomic<float>* spectrumSmoothingParameter = nullptr;
+    std::atomic<float>* spectrumResolutionParameter = nullptr;
+    std::atomic<float>* spectrumPeakHoldParameter = nullptr;
+    std::atomic<float>* loudnessTargetParameter = nullptr;
 
     // Set by the reset hold button, and cleared by the next update
     bool resetHoldRequested = false;

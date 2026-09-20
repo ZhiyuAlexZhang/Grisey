@@ -4,16 +4,10 @@
 #include <JuceHeader.h>
 #include "../Constants.h"
 #include "../PluginProcessor.h"
+#include "SpectrumSource.h"
 
 //==============================================================================
 // Enumeration FFTOrder
-// Represents different orders for Fast Fourier Transform (FFT)
-enum FFTOrder
-{
-    order2048 = 11,
-    order4096 = 12,
-    order8192 = 13
-};
 
 //==============================================================================
 // Class definition for LogarithmicScale
@@ -125,170 +119,24 @@ private:
 };
 
 //==============================================================================
-// Struct definition for FFTDataGenerator
-struct FFTDataGenerator
+// Class definition for SpectrumAnalyzer
+// Draws the spectra that the SpectrumSource analyzes: two curves, their peak holds,
+// and a strip along the bottom that shows the correlation of the channels in each band
+struct SpectrumAnalyzer : juce::Component
 {
-    // Function to produce FFT data suitable for rendering, from getFFTSize() samples
-    const std::vector<float>& produceFFTDataForRendering(const float* audioData, const float negativeInfinity)
-    {
-        // Get the FFT size
-        const auto fftSize = getFFTSize();
+    // The range of the grid in decibels, which the curves are drawn against
+    static constexpr float maxDecibels = 12.f;
+    static constexpr float minDecibels = -120.f;
 
-        // Reset the FFT data and copy audio data into it
-        fftData.assign(fftData.size(), 0);
-        std::copy(audioData, audioData + fftSize, fftData.begin());
+    // The correlation of each point is taken over a band of at least this width
+    static constexpr float correlationBandOctaves = 1.f / 3.f;
 
-        // Apply windowing to the FFT data
-        window->multiplyWithWindowingTable(fftData.data(), (size_t)fftSize);
+    // Bands that are quieter than this have no correlation to show. The correlation of a noise floor
+    // is as random as the noise, so the strip only speaks where there is signal.
+    static constexpr float correlationQuietDb = -72.f;
 
-        // Perform forward FFT
-        forwardFFT->performFrequencyOnlyForwardTransform(fftData.data());
-
-        // Normalize FFT data and convert to decibels
-        int numBins = (int)fftSize / 2;
-        for (int i = 0; i < numBins; ++i)
-        {
-            auto v = fftData[(size_t)i];
-            if (!std::isinf(v) && !std::isnan(v))
-            {
-                v /= float(numBins);
-            }
-            else
-            {
-                v = 0.f;
-            }
-            fftData[(size_t)i] = juce::Decibels::gainToDecibels(v, negativeInfinity);
-        }
-
-        return fftData;
-    }
-
-    // Function to change the FFT order
-    void changeOrder(FFTOrder newOrder)
-    {
-        // Update the FFT order
-        order = newOrder;
-        auto fftSize = getFFTSize();
-
-        // Recreate forward FFT and windowing objects
-        forwardFFT = std::make_unique<juce::dsp::FFT>(order);
-        window = std::make_unique<juce::dsp::WindowingFunction<float>>((size_t)fftSize, juce::dsp::WindowingFunction<float>::blackmanHarris);
-
-        // Clear and resize the FFT data buffer
-        fftData.clear();
-        fftData.resize((size_t)fftSize * 2, 0);
-    }
-
-    // Function to get the FFT size
-    int getFFTSize() const
-    {
-        return 1 << order;
-    }
-
-private:
-    FFTOrder order = FFTOrder::order2048; // Order of the FFT
-    std::vector<float> fftData; // Buffer for FFT data
-    std::unique_ptr<juce::dsp::FFT> forwardFFT; // Forward FFT object
-    std::unique_ptr<juce::dsp::WindowingFunction<float>> window; // Windowing function object
-};
-
-//==============================================================================
-// Struct definition for AnalyzerPathGenerator
-struct AnalyzerPathGenerator
-{
-    // Function to generate a path based on render data, FFT bounds, etc.
-    void generatePath(juce::Path& p,
-        const std::vector<float>& renderData,
-        juce::Rectangle<float> fftBounds,
-        int fftSize,
-        float binWidth,
-        float negativeInfinity)
-    {
-        // Extract FFT bounds properties
-        auto top = fftBounds.getY();
-        auto bottom = fftBounds.getHeight();
-        auto width = fftBounds.getWidth();
-
-        // Calculate the number of FFT bins
-        int numBins = (int)fftSize / 2;
-
-        // Reuse the path's storage from the previous frame
-        p.clear();
-        p.preallocateSpace(3 * numBins);
-
-        // Lambda function to map render data to y-coordinates
-        auto map = [bottom, top, negativeInfinity](float v)
-        {
-            return juce::jmap(v, negativeInfinity, 0.f, float(bottom + 1), top);
-        };
-
-        // Map the first render data point to a y-coordinate
-        auto y = map(renderData[0]);
-        // Check for NaN or infinity
-        jassert(!std::isnan(y) && !std::isinf(y));
-        // Start a new subpath at (0, y)
-        p.startNewSubPath(0, y);
-
-        // Define the resolution for the path
-        const int pathResolution = 1;
-
-        // Iterate over the bins and create path segments
-        for (int binNum = 1; binNum < numBins; binNum += pathResolution)
-        {
-            // Map the render data to a y-coordinate
-            y = map(renderData[(size_t)binNum]);
-
-            // If y-coordinate is not NaN or infinity, create a path segment
-            if (!std::isnan(y) && !std::isinf(y))
-            {
-                // Calculate the frequency of the bin
-                auto binFreq = (float)binNum * binWidth;
-                // Normalize the bin's x-coordinate
-                auto normalizedBinX = juce::mapFromLog10(binFreq, 20.f, 20000.f);
-                // Calculate the actual x-coordinate in the FFT bounds
-                auto binX = std::floor(normalizedBinX * width);
-                // Add a line segment to the path
-                p.lineTo(binX, y);
-            }
-        }
-    }
-};
-
-//==============================================================================
-// Struct definition for PathProducer
-struct PathProducer
-{
-    // Constructor for PathProducer
-    PathProducer()
-    {
-        // Initialize the FFT data generator and set the FFT order to 2048
-        fftDataGenerator.changeOrder(FFTOrder::order2048);
-    }
-
-    // Function to get the number of samples that process() needs
-    int getFFTSize() const { return fftDataGenerator.getFFTSize(); }
-
-    // Function to produce the path from the most recent getFFTSize() samples of one channel
-    void process(const float* samples, juce::Rectangle<float> fftBounds, double sampleRate);
-
-    // Function to get the path
-    const juce::Path& getPath() const { return fftPath; }
-
-private:
-    // FFT data generator for the channel
-    FFTDataGenerator fftDataGenerator;
-    // Path generator for analyzer
-    AnalyzerPathGenerator pathGenerator;
-    // Path for the FFT of the channel
-    juce::Path fftPath;
-};
-
-//==============================================================================
-// Class definition for ResponseCurveComponent
-struct ResponseCurveComponent : juce::Component
-{
     // Constructor
-    ResponseCurveComponent(MultiMeterAudioProcessor&);
+    SpectrumAnalyzer(juce::AudioProcessorValueTreeState&, SpectrumSource&);
 
     // Overrides the paint function to draw the component
     void paint(juce::Graphics&) override;
@@ -296,22 +144,19 @@ struct ResponseCurveComponent : juce::Component
     // Overrides the paintOverChildren function to draw on top of the children
     void paintOverChildren(Graphics& g) override;
 
-    // Analyzes the most recent audio and repaints, called by the editor once per frame
-    void update();
-
     // Overrides the resized function to handle resizing of the component
     void resized() override;
 
+    // Clicking the analyzer restarts the peak hold
+    void mouseDown(const juce::MouseEvent&) override;
+
+    // Lays out the curves again from the source's spectra, called by the editor once per frame.
+    // hasNewSpectra says whether the source has analyzed new audio since the last call.
+    void update(bool hasNewSpectra, bool midSide, float tiltDbPerOctave, float smoothingOctaves, bool peakHold);
+
 private:
-    // Reference to the audio processor
-    MultiMeterAudioProcessor& audioProcessor;
-
-    // Colors for left and right channels
-    juce::Colour leftChannelColour { 0xff48bde8 };
-    juce::Colour rightChannelColour { 0xffa0a0a0 };
-
-    // Grid for spectrum analysis
-    SpectrumGrid logGrid;
+    // Builds the path of a curve within the analysis area. A closed path runs along the bottom for filling.
+    juce::Path makePath(const std::vector<float>& decibels, juce::Rectangle<float> area, bool closed) const;
 
     // Function to get the area to render
     juce::Rectangle<int> getRenderArea();
@@ -319,12 +164,29 @@ private:
     // Function to get the area for analysis
     juce::Rectangle<int> getAnalysisArea();
 
-    // Path producers for left and right channels
-    PathProducer leftPathProducer, rightPathProducer;
+    // Where the spectra come from
+    SpectrumSource& source;
 
-    // The most recent samples of both channels, which the FFTs analyze
-    juce::AudioBuffer<float> analysisBuffer;
+    // Colors for the first curve (left or mid) and the second (right or side)
+    juce::Colour firstCurveColour { 0xff48bde8 };
+    juce::Colour secondCurveColour { 0xffa0a0a0 };
 
-    // The ring buffer's sample count at the last analysis, to skip frames without new audio
-    juce::uint64 lastTotalWritten = 0;
+    // Colors for the correlation strip
+    juce::Colour inPhaseColour { 0xff48bde8 };
+    juce::Colour outOfPhaseColour { 0xffe85c48 };
+
+    // Grid for spectrum analysis
+    SpectrumGrid logGrid;
+
+    // The curves in decibels, one value per display point
+    std::array<std::vector<float>, 2> curves, peakHolds;
+    std::vector<float> correlation;
+
+    // One pixel per display point, which paint stretches over the strip
+    juce::Image correlationStrip;
+
+    // The settings that the curves were last laid out with
+    SpectrumEngine::Display display;
+    bool showsMidSide = false;
+    bool showsPeakHold = false;
 };

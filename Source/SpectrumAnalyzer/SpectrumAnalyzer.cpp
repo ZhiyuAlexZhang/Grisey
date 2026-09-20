@@ -375,64 +375,81 @@ void SpectrumGrid::addLabels()
 }
 
 //==============================================================================
-// Implementation for the PathProducer class
-void PathProducer::process(const float* samples, juce::Rectangle<float> fftBounds, double sampleRate)
+// Implementation for the SpectrumAnalyzer class
+// Constructor for SpectrumAnalyzer
+SpectrumAnalyzer::SpectrumAnalyzer(juce::AudioProcessorValueTreeState& apvts, SpectrumSource& spectrumSource) :
+source(spectrumSource),
+logGrid(apvts)
 {
-    const auto fftSize = fftDataGenerator.getFFTSize();
-    const auto binWidth = sampleRate / double(fftSize);
-
-    // Produce FFT data for rendering, and generate the path from it
-    const auto& fftData = fftDataGenerator.produceFFTDataForRendering(samples, -120.f);
-    pathGenerator.generatePath(fftPath, fftData, fftBounds, fftSize, (float)binWidth, -120.f);
-}
-
-//==============================================================================
-// Implementation for the ResponseCurveComponent class
-// Constructor for ResponseCurveComponent
-ResponseCurveComponent::ResponseCurveComponent(MultiMeterAudioProcessor& p) : audioProcessor(p),
-logGrid(p.apvts)
-{
-    // Both channels are analyzed with the same FFT size
-    analysisBuffer.setSize(2, leftPathProducer.getFFTSize());
-    analysisBuffer.clear();
-
     // Add the logGrid component and make it visible
     addAndMakeVisible(logGrid);
     // Set the color of the grid
     logGrid.setGridColour(juce::Colour(0xff464646));
     // Set the text color of the grid
     logGrid.setTextColour(juce::Colour(0xff848484));
+    // The clicks that restart the peak hold have to reach this component
+    logGrid.setInterceptsMouseClicks(false, false);
 }
 
-// Paint function for ResponseCurveComponent
-void ResponseCurveComponent::paint(juce::Graphics& g)
+// Paint function for SpectrumAnalyzer
+void SpectrumAnalyzer::paint(juce::Graphics& g)
 {
     // Fill a rounded rectangle with the background color
     g.setColour(BASE_COLOR);
     g.fillRect(getAnalysisArea());
 }
 
-// Function to paint over the children of ResponseCurveComponent
-void ResponseCurveComponent::paintOverChildren(Graphics& g)
+// Function to paint over the children of SpectrumAnalyzer
+void SpectrumAnalyzer::paintOverChildren(Graphics& g)
 {
     // Get the area for response analysis
-    auto responseArea = getAnalysisArea();
+    auto responseArea = getAnalysisArea().toFloat();
 
-    // Get the path for FFT of the right channel
-    auto rightChannelFFTPath = rightPathProducer.getPath();
-    // Translate the path to response area
-    rightChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY()));
-    // Set the color and stroke the path
-    g.setColour(rightChannelColour);
-    g.strokePath(rightChannelFFTPath, PathStrokeType(1.f));
+    if (!curves[0].empty())
+    {
+        juce::Graphics::ScopedSaveState state(g);
+        g.reduceClipRegion(getAnalysisArea());
 
-    // Get the path for FFT of the left channel
-    auto leftChannelFFTPath = leftPathProducer.getPath();
-    // Translate the path to response area
-    leftChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY()));
-    // Set the color and stroke the path
-    g.setColour(leftChannelColour);
-    g.strokePath(leftChannelFFTPath, PathStrokeType(1.f));
+        // The second curve (right or side) is drawn first, so that the first lies on top of it
+        const std::array<juce::Colour, 2> colours { firstCurveColour, secondCurveColour };
+        for (int index = 1; index >= 0; --index)
+        {
+            const auto i = (size_t)index;
+
+            // Fill the curve with a gradient that fades out towards the bottom
+            g.setGradientFill(juce::ColourGradient(colours[i].withAlpha(index == 0 ? 0.35f : 0.15f), 0.f, responseArea.getY(),
+                colours[i].withAlpha(0.02f), 0.f, responseArea.getBottom(), false));
+            g.fillPath(makePath(curves[i], responseArea, true));
+
+            // Set the color and stroke the path
+            g.setColour(colours[i]);
+            g.strokePath(makePath(curves[i], responseArea, false), PathStrokeType(1.2f));
+
+            if (showsPeakHold && peakHolds[i].size() == curves[i].size())
+            {
+                g.setColour(colours[i].withAlpha(0.55f));
+                g.strokePath(makePath(peakHolds[i], responseArea, false), PathStrokeType(1.f));
+            }
+        }
+
+        // The correlation strip runs along the bottom of the analysis area
+        if (correlationStrip.isValid())
+        {
+            auto strip = responseArea.removeFromBottom(5.f);
+            g.setColour(BASE_COLOR);
+            g.fillRect(strip);
+            g.setImageResamplingQuality(juce::Graphics::lowResamplingQuality);
+            g.drawImage(correlationStrip, strip, juce::RectanglePlacement::stretchToFit);
+        }
+
+        // Name the curves in their colors, below the frequency labels of the grid
+        auto legend = getAnalysisArea().withTrimmedTop(22).removeFromTop(16).removeFromRight(44).translated(-4, 0);
+        g.setFont(12.f);
+        g.setColour(firstCurveColour);
+        g.drawText(showsMidSide ? "M" : "L", legend.removeFromLeft(22), juce::Justification::centred);
+        g.setColour(secondCurveColour);
+        g.drawText(showsMidSide ? "S" : "R", legend, juce::Justification::centred);
+    }
 
     // Create a border path
     Path border;
@@ -447,43 +464,118 @@ void ResponseCurveComponent::paintOverChildren(Graphics& g)
     g.fillPath(border);
 }
 
-// Update function for ResponseCurveComponent
-void ResponseCurveComponent::update()
+// Update function for SpectrumAnalyzer
+void SpectrumAnalyzer::update(bool hasNewSpectra, bool midSide, float tiltDbPerOctave, float smoothingOctaves, bool peakHold)
 {
-    auto& ringBuffer = audioProcessor.sampleRingBuffer;
+    // Two points per pixel keep the curves smooth
+    const int numPoints = juce::jmax(2, getAnalysisArea().getWidth() * 2);
 
-    // There is nothing new to draw if no audio has arrived since the last frame
-    const auto totalWritten = ringBuffer.getTotalWritten();
-    if (totalWritten == lastTotalWritten)
+    const bool settingsChanged = numPoints != display.numPoints
+        || midSide != showsMidSide
+        || !juce::exactlyEqual(tiltDbPerOctave, display.tiltDbPerOctave)
+        || !juce::exactlyEqual(smoothingOctaves, display.smoothingOctaves);
+
+    // The peak hold starts afresh whenever it would no longer be comparable
+    if (settingsChanged || peakHold != showsPeakHold)
+        for (auto& hold : peakHolds)
+            hold.clear();
+
+    if (!hasNewSpectra && !settingsChanged && peakHold == showsPeakHold)
         return;
 
-    // Keep the previous curves if the audio thread overwrote the samples during the copy
-    if (!ringBuffer.readLatest(analysisBuffer.getWritePointer(0), analysisBuffer.getWritePointer(1), analysisBuffer.getNumSamples()))
-        return;
+    display.numPoints = numPoints;
+    display.tiltDbPerOctave = tiltDbPerOctave;
+    display.smoothingOctaves = smoothingOctaves;
+    showsMidSide = midSide;
+    showsPeakHold = peakHold;
 
-    lastTotalWritten = totalWritten;
+    auto& engine = source.getEngine();
+    const auto sampleRate = source.getSampleRate();
 
-    // Get the bounds for FFT analysis
-    auto fftBounds = getAnalysisArea().toFloat();
-    // Get the sample rate
-    auto sampleRate = audioProcessor.getSampleRate();
+    engine.render(midSide ? SpectrumEngine::Curve::mid : SpectrumEngine::Curve::left, display, sampleRate, curves[0]);
+    engine.render(midSide ? SpectrumEngine::Curve::side : SpectrumEngine::Curve::right, display, sampleRate, curves[1]);
 
-    // Process FFT for left and right channels
-    leftPathProducer.process(analysisBuffer.getReadPointer(0), fftBounds, sampleRate);
-    rightPathProducer.process(analysisBuffer.getReadPointer(1), fftBounds, sampleRate);
+    if (peakHold)
+    {
+        for (size_t i = 0; i < curves.size(); ++i)
+        {
+            if (peakHolds[i].size() != curves[i].size())
+                peakHolds[i] = curves[i];
+
+            for (size_t point = 0; point < curves[i].size(); ++point)
+                peakHolds[i][point] = juce::jmax(peakHolds[i][point], curves[i][point]);
+        }
+    }
+
+    // The correlation strip has one pixel per display point: blue where the channels are in phase,
+    // red where they are out of phase, and clear where they are unrelated or silent
+    engine.renderCorrelation(display, sampleRate, correlationBandOctaves, correlationQuietDb, correlation);
+
+    if (correlationStrip.getWidth() != numPoints)
+        correlationStrip = juce::Image(juce::Image::ARGB, numPoints, 1, true);
+
+    {
+        juce::Image::BitmapData pixels(correlationStrip, juce::Image::BitmapData::writeOnly);
+        for (int point = 0; point < numPoints; ++point)
+        {
+            const float value = correlation[(size_t)point];
+            const auto colour = std::isnan(value) ? juce::Colours::transparentBlack
+                : (value >= 0.f ? inPhaseColour : outOfPhaseColour).withAlpha(std::abs(value));
+            pixels.setPixelColour(point, 0, colour);
+        }
+    }
+
     // Repaint the component
     repaint();
 }
 
-// Resized function for ResponseCurveComponent
-void ResponseCurveComponent::resized()
+juce::Path SpectrumAnalyzer::makePath(const std::vector<float>& decibels, juce::Rectangle<float> area, bool closed) const
+{
+    juce::Path path;
+    if (decibels.size() < 2)
+        return path;
+
+    path.preallocateSpace(3 * (int)decibels.size() + 12);
+
+    const float xStep = area.getWidth() / (float)(decibels.size() - 1);
+    for (size_t point = 0; point < decibels.size(); ++point)
+    {
+        // A little below the bottom, so that the stroke of a silent curve is out of sight
+        const float y = juce::jmap(juce::jmax(decibels[point], minDecibels - 3.f), minDecibels, maxDecibels, area.getBottom(), area.getY());
+        const float x = area.getX() + xStep * (float)point;
+
+        if (point == 0)
+            path.startNewSubPath(x, y);
+        else
+            path.lineTo(x, y);
+    }
+
+    if (closed)
+    {
+        path.lineTo(area.getRight(), area.getBottom() + 4.f);
+        path.lineTo(area.getX(), area.getBottom() + 4.f);
+        path.closeSubPath();
+    }
+
+    return path;
+}
+
+void SpectrumAnalyzer::mouseDown(const juce::MouseEvent&)
+{
+    // Restart the peak hold from the current curves
+    for (auto& hold : peakHolds)
+        hold.clear();
+}
+
+// Resized function for SpectrumAnalyzer
+void SpectrumAnalyzer::resized()
 {
     // Set the bounds for logGrid
     logGrid.setBounds(getAnalysisArea());
 }
 
 // Function to get the render area
-juce::Rectangle<int> ResponseCurveComponent::getRenderArea()
+juce::Rectangle<int> SpectrumAnalyzer::getRenderArea()
 {
     auto bounds = getLocalBounds();
     bounds.removeFromTop(7);
@@ -494,7 +586,7 @@ juce::Rectangle<int> ResponseCurveComponent::getRenderArea()
 }
 
 // Function to get the analysis area
-juce::Rectangle<int> ResponseCurveComponent::getAnalysisArea()
+juce::Rectangle<int> SpectrumAnalyzer::getAnalysisArea()
 {
     auto bounds = getRenderArea();
     bounds.removeFromTop(4);

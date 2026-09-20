@@ -33,24 +33,42 @@ resizable, GPU-friendly design in the spirit of modern mastering tools.
 - [x] Unit tests for each measurement, the ring buffer, and state loading
 - [x] `MultiMeterSnapshot`, a tool that saves a picture of the editor running a test signal
 
-## Phase 2: New meters
+## Phase 2: New meters (done)
 
-- [ ] Loudness to ITU-R BS.1770-4 / EBU R128: momentary, short-term, integrated, loudness
-      range, a history graph, and delivery targets (for example -14 LUFS for streaming)
-- [ ] True peak with 4x oversampling, plus PLR and PSR
-- [ ] Spectrum: overlapped FFT, adjustable tilt, fractional-octave smoothing, peak hold,
-      freeze, and L/R and M/S modes
-- [ ] A scrolling spectrogram
-- [ ] Goniometer with phosphor-style persistence, and Lissajous and polar modes
-- [ ] Multiband correlation
-- [ ] Verify the loudness meter against the EBU Tech 3341 / 3342 test signals
+- [x] Loudness to ITU-R BS.1770-4 / EBU R 128 (`Source/Engine/LoudnessMeter.h`): momentary,
+      short-term, gated integrated, and loudness range, with a history graph and delivery
+      targets (-14 LUFS streaming, -16 podcast, -23 EBU R 128, -24 ATSC A/85)
+- [x] True peak with 4x oversampling (`Source/Engine/TruePeakDetector.h`), plus PLR and PSR.
+      The steady-state error is within 0.17 dB up to 20 kHz.
+- [x] Spectrum (`Source/Engine/SpectrumEngine.h`): overlapped Hann FFT from 2048 to 16384
+      points, scaled so that a full-scale sine reads 0 dB, with tilt, fractional-octave
+      smoothing, peak hold, freeze, and L/R and M/S modes. The curves now line up with the
+      grid, which version 1 drew 12 dB apart.
+- [x] A scrolling spectrogram
+- [x] Goniometer with phosphor-style persistence, and Lissajous and polar modes
+- [x] Multiband correlation, as a strip along the bottom of the analyzer that is blue where
+      the channels are in phase and red where they are out of phase. It comes from the
+      cross-spectrum of the same FFTs, so it is measured per analysis frame on the GUI
+      thread, unlike the level, loudness, and wideband correlation readings, which are
+      measured from every sample on the audio thread.
+- [x] Verify against the EBU test signals: the tests synthesize Tech 3341 cases 1-5, 9, 12
+      and 15-19, and Tech 3342 cases 1-4, and all pass
+- [ ] Verify against the EBU cases that need the official recordings (Tech 3341 cases 7, 8
+      and 20-23, Tech 3342 cases 5 and 6), which have to be downloaded from tech.ebu.ch
+
+The audio-thread measurement (peak, RMS, correlation, loudness, true peak, ring buffer)
+costs about 0.15% of one core at 48 kHz.
 
 ## Phase 3: Interface
 
 - [ ] Dark theme driven by one theme struct and one `LookAndFeel`, replacing the colour macros
 - [ ] One large resizable, HiDPI display with floating controls that fade in on hover
 - [ ] Gradient-filled curves, smooth meter ballistics, and hover readouts (frequency, note, dB)
-- [ ] Cache static layers as images, and profile before adding any GPU shader
+- [ ] Cut the cost of drawing, which is nearly all of the plugin's CPU use: about 25-30% of
+      one core with an active signal, in every view, against about 3% for our own code.
+      Cache static layers as images, repaint only what changes, and profile before adding
+      any GPU shader.
+- [ ] Give the view options proper controls. For now they are a plain row of combo boxes.
 
 ## Phase 4: Release
 

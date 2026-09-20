@@ -5,15 +5,19 @@
 // A development tool that runs the real editor with a test signal, and saves a
 // picture of it. It shows what the plugin looks like without a host.
 //
-//   MultiMeterSnapshot <output.png> [view: 0 goniometer, 1 analyzer, 2 histogram] [seconds]
+//   MultiMeterSnapshot <output.png> [view] [seconds] [parameterID=value ...]
 //
-// The test signal is a 440 Hz tone, a quieter 3 kHz tone that is out of phase
-// between the channels, and a little noise, so every meter has something to show.
+// The views are 0 goniometer, 1 analyzer, 2 spectrogram, 3 histogram and 4 loudness.
+// Any parameter can be set by its ID, for example spectrumChannels=1 or goniometerMode=1.
+//
+// The test signal is a 440 Hz tone, a quieter 3 kHz tone that is out of phase between
+// the channels, a tone that sweeps up from 200 Hz to 8 kHz every 4 s, and a little noise.
+// The whole signal swells and fades every 8 s, so every meter has something to show.
 int main(int argc, char* argv[])
 {
     if (argc < 2)
     {
-        std::cout << "Usage: MultiMeterSnapshot <output.png> [view] [seconds]" << std::endl;
+        std::cout << "Usage: MultiMeterSnapshot <output.png> [view] [seconds] [parameterID=value ...]" << std::endl;
         return 1;
     }
 
@@ -33,6 +37,17 @@ int main(int argc, char* argv[])
     if (auto* parameter = processor.apvts.getParameter(Parameters::ID::mainView))
         parameter->setValueNotifyingHost(parameter->convertTo0to1((float) view));
 
+    for (int i = 4; i < argc; ++i)
+    {
+        const auto argument = juce::String(argv[i]);
+        const auto id = argument.upToFirstOccurrenceOf("=", false, false);
+
+        if (auto* parameter = processor.apvts.getParameter(id))
+            parameter->setValueNotifyingHost(parameter->convertTo0to1(argument.fromFirstOccurrenceOf("=", false, false).getFloatValue()));
+        else
+            std::cout << "There is no parameter called " << id << std::endl;
+    }
+
     std::unique_ptr<juce::AudioProcessorEditor> editor(processor.createEditorAndMakeActive());
     editor->addToDesktop(0);
     editor->setVisible(true);
@@ -45,6 +60,7 @@ int main(int argc, char* argv[])
         juce::MidiBuffer midi;
         juce::Random random(1);
         juce::int64 position = 0;
+        double sweepPhase = 0.0;
         const auto start = std::chrono::steady_clock::now();
 
         while (running.load())
@@ -54,8 +70,15 @@ int main(int argc, char* argv[])
                 const double t = (double) position / sampleRate;
                 const float low = 0.4f * (float) std::sin(juce::MathConstants<double>::twoPi * 440.0 * t);
                 const float high = 0.15f * (float) std::sin(juce::MathConstants<double>::twoPi * 3000.0 * t);
-                block.setSample(0, i, low + high + 0.01f * (random.nextFloat() - 0.5f));
-                block.setSample(1, i, 0.7f * (low - high) + 0.01f * (random.nextFloat() - 0.5f));
+
+                // The sweep rises by the same ratio in every moment, which is a straight line on the spectrogram
+                const double sweepFrequency = 200.0 * std::pow(40.0, std::fmod(t, 4.0) / 4.0);
+                sweepPhase += juce::MathConstants<double>::twoPi * sweepFrequency / sampleRate;
+                const float sweep = 0.1f * (float) std::sin(sweepPhase);
+
+                const float swell = 0.55f + 0.45f * (float) std::sin(juce::MathConstants<double>::twoPi * t / 8.0);
+                block.setSample(0, i, swell * (low + high + sweep) + 0.01f * (random.nextFloat() - 0.5f));
+                block.setSample(1, i, swell * (0.7f * (low - high) + sweep) + 0.01f * (random.nextFloat() - 0.5f));
             }
 
             processor.processBlock(block, midi);
