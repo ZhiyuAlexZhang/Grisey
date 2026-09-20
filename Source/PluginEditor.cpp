@@ -11,34 +11,39 @@
 #include "PluginEditor.h"
 
 //==============================================================================
-// Implementation for the GonioGlanceAudioProcessorEditor class.
 // Constructor for MultiMeterAudioProcessorEditor class.
-// Initializes GUI components and sets up listeners.
+// Initializes GUI components and attaches the controls to their parameters.
 MultiMeterAudioProcessorEditor::MultiMeterAudioProcessorEditor(MultiMeterAudioProcessor& p) :
     AudioProcessorEditor(&p),
     audioProcessor(p),
-    gonioMeter(buffer),
-    correlationMeter(buffer, audioProcessor.getSampleRate()),
     spectrumAnalyzer(audioProcessor),
-    scaleKnobSlider(*audioProcessor.apvts.getParameter("Scale Knob"), "%"),
-    scaleKnobSliderAttachment(audioProcessor.apvts, "Scale Knob", scaleKnobSlider)
+    scaleKnobSlider(*audioProcessor.apvts.getParameter(Parameters::ID::goniometerScale), "%"),
+    scaleKnobSliderAttachment(audioProcessor.apvts, Parameters::ID::goniometerScale, scaleKnobSlider),
+    tickDisplayAttachment(audioProcessor.apvts, Parameters::ID::showTick, tickDisplay),
+    mainViewAttachment(*audioProcessor.apvts.getParameter(Parameters::ID::mainView),
+        [this](float value) { showMainView(juce::roundToInt(value)); }),
+    meterViewAttachment(*audioProcessor.apvts.getParameter(Parameters::ID::meterView),
+        [this](float value) { meterViewButton.setSelection(juce::roundToInt(value)); }),
+    histogramViewAttachment(*audioProcessor.apvts.getParameter(Parameters::ID::histogramView),
+        [this](float value) { layoutHistograms(juce::roundToInt(value)); }),
+    vBlankAttachment(this, [this](double timestampSeconds) { vBlank(timestampSeconds); })
 {
-    // Timer setup
-    startTimerHz(60);
-    buffer.clear();
+    auto& apvts = audioProcessor.apvts;
+    scaleParameter = apvts.getRawParameterValue(Parameters::ID::goniometerScale);
+    decayRateParameter = apvts.getRawParameterValue(Parameters::ID::decayRate);
+    holdTimeParameter = apvts.getRawParameterValue(Parameters::ID::holdTime);
+    meterViewParameter = apvts.getRawParameterValue(Parameters::ID::meterView);
+    showTickParameter = apvts.getRawParameterValue(Parameters::ID::showTick);
 
-    // add menu view switch and also add listener so editor can use callback to switch between three views
-    // menu switch is simply added to switch between three different visuals (goniometer, spectrum analyzer and histogram)
+    // The menu switch changes between the three visuals (goniometer, spectrum analyzer and histogram)
     addAndMakeVisible(menuViewSwitch);
-    menuViewSwitch.addListener(*this);
+    menuViewSwitch.onChange = [this](int id) { mainViewAttachment.setValueAsCompleteGesture((float)id); };
 
     // Histogram view button setup
     addAndMakeVisible(histogramViewButton);
-    histogramViewButton.addOption("Parallel", *this);
-    histogramViewButton.addOption("Stacked", *this);
-    //before setting the selection to the histogramview combobox make sure it is within valid range, if not then set to default
-    int histoID = (audioProcessor.histogramDisplayID > 1 || audioProcessor.histogramDisplayID < 0) ? 0 : audioProcessor.histogramDisplayID;
-    histogramViewButton.setSelection(histoID);
+    for (auto& name : Parameters::histogramViewNames)
+        histogramViewButton.addOption(name);
+    histogramViewButton.onChange = [this](int id) { histogramViewAttachment.setValueAsCompleteGesture((float)id); };
 
     // Meter setup
     addAndMakeVisible(peakMeter);
@@ -47,72 +52,58 @@ MultiMeterAudioProcessorEditor::MultiMeterAudioProcessorEditor(MultiMeterAudioPr
     addChildComponent(rmsHistogram);
     addChildComponent(gonioMeter);
     addAndMakeVisible(correlationMeter);
-    addAndMakeVisible(spectrumAnalyzer);
+    addChildComponent(spectrumAnalyzer);
 
     // Scale knob setup
     addAndMakeVisible(scaleKnobSlider);
-    scaleKnobSlider.addListener(this);
-    // always check if the value is in valud range then set the value
-    float validValue = (audioProcessor.sliderValue > 200 || audioProcessor.sliderValue < 50) ? 100 : audioProcessor.sliderValue;
-    scaleKnobSlider.setValue(validValue, juce::dontSendNotification);
     addAndMakeVisible(scaleKnobLabel);
     scaleKnobLabel.setText("Goniometer Scale", juce::NotificationType::dontSendNotification);
     scaleKnobLabel.setColour(Label::ColourIds::textColourId, Colours::black);
 
     // Level meter decay setup
     addAndMakeVisible(levelMeterDecaySelector);
-    levelMeterDecaySelector.addItemList(juce::StringArray("-3dB/s", "-6dB/s", "-12dB/s", "-24dB/s", "-36dB/s"), 1);
-    levelMeterDecaySelector.addListener(this);
-    int validID = (audioProcessor.levelMeterDecayId > 5 || audioProcessor.levelMeterDecayId < 1) ? 1 : audioProcessor.levelMeterDecayId;
-    levelMeterDecaySelector.setSelectedId(validID, juce::dontSendNotification);
+    levelMeterDecaySelector.addItemList(Parameters::decayRateNames, 1);
+    levelMeterDecayAttachment = std::make_unique<APVTS::ComboBoxAttachment>(apvts, Parameters::ID::decayRate, levelMeterDecaySelector);
     addAndMakeVisible(levelMeterDecayLabel);
     levelMeterDecayLabel.setText("Level Meter Decay", juce::NotificationType::dontSendNotification);
     levelMeterDecayLabel.setColour(Label::ColourIds::textColourId, Colours::black);
 
     // Averager duration setup
     addAndMakeVisible(averagerDurationSelector);
-    averagerDurationSelector.addItemList(juce::StringArray("100ms", "250ms", "500ms", "1000ms", "2000ms"), 1);
-    averagerDurationSelector.addListener(this);
-    validID = (audioProcessor.averagerDurationId > 5 || audioProcessor.averagerDurationId < 1) ? 1 : audioProcessor.averagerDurationId;
-    averagerDurationSelector.setSelectedId(validID, juce::dontSendNotification);
+    averagerDurationSelector.addItemList(Parameters::averagerDurationNames, 1);
+    averagerDurationAttachment = std::make_unique<APVTS::ComboBoxAttachment>(apvts, Parameters::ID::averagerDuration, averagerDurationSelector);
     addAndMakeVisible(averagerDurationLabel);
     averagerDurationLabel.setText("Averager Duration", juce::NotificationType::dontSendNotification);
     averagerDurationLabel.setColour(Label::ColourIds::textColourId, Colours::black);
 
     // Meter view setup
     addAndMakeVisible(meterViewButton);
-    meterViewButton.addOption("Both", *this);
-    meterViewButton.addOption("Peak", *this);
-    meterViewButton.addOption("Avg", *this);
-    int meterID = (audioProcessor.levelMeterDisplayID > 2 || audioProcessor.levelMeterDisplayID < 0) ? 0 : audioProcessor.levelMeterDisplayID;
-    meterViewButton.setSelection(meterID);
+    for (auto& name : Parameters::meterViewNames)
+        meterViewButton.addOption(name);
+    meterViewButton.onChange = [this](int id) { meterViewAttachment.setValueAsCompleteGesture((float)id); };
     addAndMakeVisible(meterViewLabel);
     meterViewLabel.setText("Level Meter Display", juce::NotificationType::dontSendNotification);
     meterViewLabel.setColour(Label::ColourIds::textColourId, Colours::black);
 
     // Tick display setup
     addAndMakeVisible(tickDisplay);
-    tickDisplay.addListener(this);
-    tickDisplay.setToggleState(true, juce::dontSendNotification);
-    tickDisplay.clicked();
     addAndMakeVisible(tickDisplayLabel);
     tickDisplayLabel.setText("Tick Display", juce::NotificationType::dontSendNotification);
     tickDisplayLabel.setColour(Label::ColourIds::textColourId, Colours::black);
 
     // Hold time setup
     addAndMakeVisible(holdTimeSelector);
-    holdTimeSelector.addItemList(juce::StringArray("0s", "0.5s", "2s", "4s", "6s", "inf"), 1);
-    holdTimeSelector.addListener(this);
-    validID = (audioProcessor.holdTimeId > 6 || audioProcessor.holdTimeId < 1) ? 3 : audioProcessor.holdTimeId;
-    holdTimeSelector.setSelectedId(validID, juce::dontSendNotification);
+    holdTimeSelector.addItemList(Parameters::holdTimeNames, 1);
+    holdTimeAttachment = std::make_unique<APVTS::ComboBoxAttachment>(apvts, Parameters::ID::holdTime, holdTimeSelector);
     addAndMakeVisible(holdTimeLabel);
     holdTimeLabel.setText("Tick Hold Duration", juce::NotificationType::dontSendNotification);
     holdTimeLabel.setColour(Label::ColourIds::textColourId, Colours::black);
 
     // Reset hold setup
-    addAndMakeVisible(resetHold);
-    resetHold.clicked();
-    resetHold.setVisible(holdTimeSelector.getSelectedId() == 6);
+    // The button is only needed while the ticks are held forever
+    addChildComponent(resetHold);
+    resetHold.setClickingTogglesState(false);
+    resetHold.onClick = [this] { resetHoldRequested = true; };
 
     // Histogram view setup
     addAndMakeVisible(histogramViewLabel);
@@ -133,6 +124,14 @@ MultiMeterAudioProcessorEditor::MultiMeterAudioProcessorEditor(MultiMeterAudioPr
 
     // Set the initial size of the editor
     setSize(800, 400);
+
+    // Bring the custom controls in line with their parameters, now that the layout is known
+    mainViewAttachment.sendInitialUpdate();
+    meterViewAttachment.sendInitialUpdate();
+    histogramViewAttachment.sendInitialUpdate();
+
+    // Discard the peaks that built up while the editor was closed
+    audioProcessor.meterEngine.read();
 }
 
 
@@ -172,8 +171,7 @@ void MultiMeterAudioProcessorEditor::resized()
     spectrumAnalyzer.setBounds(visualsRoom.reduced(20));
     gonioMeter.setBounds(visualsRoom.getCentreX() - gonioMeterWidth / 2, visualsRoom.getCentreY() - gonioMeterWidth / 2, gonioMeterWidth, gonioMeterWidth);
 
-    peakHistogram.setBounds(audioProcessor.histogramDisplayID ? peakStacked : peakSBS);
-    rmsHistogram.setBounds(audioProcessor.histogramDisplayID ? rmsStacked : rmsSBS);
+    layoutHistograms(histogramViewButton.getSelectedId());
 
     auto peakSection = meterRoom.removeFromLeft(meterRoom.getWidth() / 2).reduced(10,0);
     peakMeter.setBounds(peakSection.expanded(0, 5).translated(0,25));
@@ -226,149 +224,104 @@ void MultiMeterAudioProcessorEditor::resized()
     averagerDurationSelector.setBounds(space1.removeFromTop(delY).removeFromLeft(104).reduced(0, 1).translated(6,0));
 }
 
-void MultiMeterAudioProcessorEditor::timerCallback()
+void MultiMeterAudioProcessorEditor::vBlank(double timestampSeconds)
 {
-
-    auto& audioProcessorFifo = audioProcessor.fifo;
-
-    // If the audioProcessor.fifo has items available for reading
-    if (/*JUCE_WINDOWS ||*/ audioProcessorFifo.getNumAvailableForReading() > 0)
+    if (lastUpdateTime < 0.0)
     {
-        // Use a while( fifo.pull(buffer) ) loop to pull every element available out of the fifo
-        while (audioProcessorFifo.pull(buffer))
-        {
-        }
+        lastUpdateTime = timestampSeconds;
+        lastAudioTime = timestampSeconds;
+        return;
     }
-    
-    // After finishing pulling all buffers out of the fifo in timerCallback,
-    // use the buffer’s member function that returns the magnitude for a channel to get
-    // the Left channel’s magnitude
-    // This function returns a "gain" value.f
-    float leftChannelMagnitudeRaw = buffer.getMagnitude(0, 0, buffer.getNumSamples());
-    float rightChannelMagnitudeRaw = buffer.getMagnitude(1, 0, buffer.getNumSamples());
-    
-    float leftChannelRMSRaw = buffer.getRMSLevel(0, 0, buffer.getNumSamples());
-    float rightChannelRMSRaw = buffer.getRMSLevel(1, 0, buffer.getNumSamples());
 
-    // Convert this value to decibels
-    // The juce::Decibels::gainToDecibels() function takes a 2nd parameter
-    // This 2nd parameter lets you define what "negative infinity" is, which is NEGATIVE_INFINITY
-    float leftChannelMagnitudeDecibels = juce::Decibels::gainToDecibels(leftChannelMagnitudeRaw,
-                                                                        NEGATIVE_INFINITY);
-    float rightChannelMagnitudeDecibels = juce::Decibels::gainToDecibels(rightChannelMagnitudeRaw,
-                                                                         NEGATIVE_INFINITY);
-    
-    float leftChannelRMSDecibels = juce::Decibels::gainToDecibels(leftChannelRMSRaw,
-                                                                  NEGATIVE_INFINITY);
-    float rightChannelRMSDecibels = juce::Decibels::gainToDecibels(rightChannelRMSRaw,
-                                                                  NEGATIVE_INFINITY);
-    
-    // In this section, control values are updated using the TimerCallback mechanism
+    // Displays that refresh faster than the update rate skip the frames in between
+    // The small tolerance keeps a 60 Hz display from dropping frames to timing jitter
+    const double elapsedSeconds = timestampSeconds - lastUpdateTime;
+    if (elapsedSeconds < 0.9 / updateRateHz)
+        return;
 
-    // The update function is called with the latest values for peak and RMS meters, as well as other parameters
-    // These parameters are updated via corresponding listener functions, such as ComboBoxChanged or SliderValueChanged
-    peakMeter.update(leftChannelMagnitudeDecibels, rightChannelMagnitudeDecibels, currentDecayRate, audioProcessor.levelMeterDisplayID, tickDisplay.getToggleState(), holdTime, resetHold.getToggleState());
-    RMSMeter.update(leftChannelRMSDecibels, rightChannelRMSDecibels, currentDecayRate, audioProcessor.levelMeterDisplayID, tickDisplay.getToggleState(), holdTime, resetHold.getToggleState());
+    lastUpdateTime = timestampSeconds;
 
-    // Resetting the resetHold button to false state to prevent it from toggling
-    if (resetHold.getToggleState())
-        resetHold.setToggleState(false, juce::dontSendNotification);
+    // After a long pause, such as the window being hidden, the meters carry on rather than jump
+    updateMeters((float)juce::jmin(elapsedSeconds, 0.1));
+}
+
+void MultiMeterAudioProcessorEditor::updateMeters(float elapsedSeconds)
+{
+    // The measurements were made on the audio thread from every sample
+    auto readings = audioProcessor.meterEngine.read();
+
+    // When the host stops calling the processor the last readings would stay forever,
+    // so they are replaced with silence once no audio has arrived for a while
+    const auto totalWritten = audioProcessor.sampleRingBuffer.getTotalWritten();
+    if (totalWritten != lastTotalWritten)
+    {
+        lastTotalWritten = totalWritten;
+        lastAudioTime = lastUpdateTime;
+    }
+    else if (lastUpdateTime - lastAudioTime > silenceTimeoutSeconds)
+    {
+        readings = {};
+    }
+
+    // Convert the readings to decibels
+    // The 2nd parameter of juce::Decibels::gainToDecibels() defines what "negative infinity" is
+    float leftChannelMagnitudeDecibels = juce::Decibels::gainToDecibels(readings.peak[0], NEGATIVE_INFINITY);
+    float rightChannelMagnitudeDecibels = juce::Decibels::gainToDecibels(readings.peak[1], NEGATIVE_INFINITY);
+    float leftChannelRMSDecibels = juce::Decibels::gainToDecibels(readings.rms[0], NEGATIVE_INFINITY);
+    float rightChannelRMSDecibels = juce::Decibels::gainToDecibels(readings.rms[1], NEGATIVE_INFINITY);
+
+    // The settings come straight from the parameters
+    const float decayRate = Parameters::valueAt(Parameters::decayRatesDbPerSecond, juce::roundToInt(decayRateParameter->load()));
+    const float holdTime = Parameters::valueAt(Parameters::holdTimesSeconds, juce::roundToInt(holdTimeParameter->load()));
+    const int meterViewId = juce::roundToInt(meterViewParameter->load());
+    const bool showTick = showTickParameter->load() > 0.5f;
+
+    // The reset button is only needed while the ticks are held forever
+    resetHold.setVisible(std::isinf(holdTime));
+
+    peakMeter.update(leftChannelMagnitudeDecibels, rightChannelMagnitudeDecibels, decayRate, meterViewId, showTick, holdTime, resetHoldRequested, elapsedSeconds);
+    RMSMeter.update(leftChannelRMSDecibels, rightChannelRMSDecibels, decayRate, meterViewId, showTick, holdTime, resetHoldRequested, elapsedSeconds);
+    resetHoldRequested = false;
 
     // Updating peak and RMS histograms with the average of left and right channel RMS and peak values
+    // They keep recording while another view is shown
     peakHistogram.update((leftChannelMagnitudeDecibels + rightChannelMagnitudeDecibels) / 2);
     rmsHistogram.update((leftChannelRMSDecibels + rightChannelRMSDecibels) / 2);
 
-    // Updating the correlation averager with the new duration every time the TimerCallback is invoked
-    correlationMeter.update(averagerDuration);
+    correlationMeter.update(readings.correlationFast, readings.correlationSlow);
 
-    // Scaling knob values are mapped to a range of 50 - 200
-    // This value is used as a gain factor in the updateCoeff function of the gonioMeter
-    float gain = scaleKnobSlider.getValue() / 100;
-    gonioMeter.updateCoeff(gain); // Scaling the gonioMeter plot
+    // Only the visible view needs the samples themselves
+    if (gonioMeter.isVisible())
+    {
+        // Scaling knob values are mapped to a range of 50 - 200
+        // This value is used as a gain factor in the updateCoeff function of the gonioMeter
+        gonioMeter.updateCoeff(scaleParameter->load() / 100.f);
 
-    // Triggering a repaint for the gonioMeter
-    gonioMeter.repaint();
+        // Keep the previous plot if the audio thread overwrote the samples during the copy
+        auto& scopeBuffer = gonioMeter.getBuffer();
+        if (audioProcessor.sampleRingBuffer.readLatest(scopeBuffer.getWritePointer(0), scopeBuffer.getWritePointer(1), scopeBuffer.getNumSamples()))
+            gonioMeter.repaint();
+    }
+
+    if (spectrumAnalyzer.isVisible())
+        spectrumAnalyzer.update();
 }
 
-void MultiMeterAudioProcessorEditor::comboBoxChanged(juce::ComboBox* comboBox)
+void MultiMeterAudioProcessorEditor::showMainView(int viewId)
 {
-    // This function handles changes in ComboBox controls
+    menuViewSwitch.setSelection(viewId);
 
-    // Modifying variables based on the selected ComboBox item
-    if (comboBox == &levelMeterDecaySelector)
-    {
-        // Extracting the decay rate value from the ComboBox text and storing it
-        currentDecayRate = -comboBox->getItemText(comboBox->getSelectedId() - 1).removeCharacters("dB/s").getFloatValue();
-
-        // Storing the selected ID in the value tree for retrieval by subsequent instances
-        audioProcessor.levelMeterDecayId = comboBox->getSelectedId();
-    }
-
-    // Updating variables and storing the selected ID in the value tree for averager duration
-    else if (comboBox == &averagerDurationSelector)
-    {
-        averagerDuration = comboBox->getItemText(comboBox->getSelectedId() - 1).removeCharacters("ms").getFloatValue(); //ms
-        audioProcessor.averagerDurationId = comboBox->getSelectedId();
-    }
-    else if (comboBox == &holdTimeSelector)
-    {
-        // Adjusting hold time value based on ComboBox selection
-        if (comboBox->getNumItems() == comboBox->getSelectedId())
-        {
-            holdTime = 60; // Assuming 60 seconds for infinite hold time
-            resetHold.setVisible(true);
-        }
-        else
-        {
-            holdTime = comboBox->getItemText(comboBox->getSelectedId() - 1).removeCharacters("s").getFloatValue();
-            resetHold.setVisible(false);
-        }
-
-        // Converting hold time to milliseconds and storing the selected ID in the value tree
-        holdTime *= 1000;
-        audioProcessor.holdTimeId = comboBox->getSelectedId();
-    }
+    // Based on the view ID one of the visuals is set to visible and the others are hidden
+    gonioMeter.setVisible(viewId == Parameters::goniometerView);
+    spectrumAnalyzer.setVisible(viewId == Parameters::analyzerView);
+    peakHistogram.setVisible(viewId == Parameters::histogramView);
+    rmsHistogram.setVisible(viewId == Parameters::histogramView);
 }
 
-void MultiMeterAudioProcessorEditor::buttonClicked(juce::Button* button)
+void MultiMeterAudioProcessorEditor::layoutHistograms(int histogramViewId)
 {
-    if (button == &tickDisplay)
-    {
-        // This variable is used on plugin set and get state to load and retrieve the tick show/hide state
-        audioProcessor.tickDisplayState = button->getToggleState();
-    }
-    else
-    {
-        // All the buttonclicked callback are called so that they get's updated
-        menuViewSwitch.buttonClicked(button);
-        histogramViewButton.buttonClicked(button);
-        meterViewButton.buttonClicked(button);
+    histogramViewButton.setSelection(histogramViewId);
 
-        // After buttunclicked is called for menuswitch it's id will be updated internally and can be used
-        // to switch which visual to show on UI
-        int id = menuViewSwitch.getSwitchID();
-
-        // Based on the updated id value one of the visual is set to visible and other are hide
-        spectrumAnalyzer.setVisible(id == 1);
-        peakHistogram.setVisible(id == 2);
-        rmsHistogram.setVisible(id == 2);
-        gonioMeter.setVisible(id == 0);
-
-        // After buttonclicked is called levelmeter id and histogrami id are updated to use it for later
-        audioProcessor.levelMeterDisplayID = meterViewButton.getSelectedId();
-        audioProcessor.histogramDisplayID = histogramViewButton.getSelectedId();
-    }
-
-    // Histogram view is swtiched whenever the button is clicked 
-    peakHistogram.setBounds(audioProcessor.histogramDisplayID ? peakStacked : peakSBS);
-    rmsHistogram.setBounds(audioProcessor.histogramDisplayID ? rmsStacked : rmsSBS);
-}
-
-void MultiMeterAudioProcessorEditor::sliderValueChanged(juce::Slider* slider)
-{
-    // This callback is dedicated to the scaleKnobSlider to store the value of slider in valueTree
-    if (slider == &scaleKnobSlider)
-    {
-        audioProcessor.sliderValue = slider->getValue();
-    }
+    peakHistogram.setBounds(histogramViewId ? peakStacked : peakSBS);
+    rmsHistogram.setBounds(histogramViewId ? rmsStacked : rmsSBS);
 }

@@ -126,22 +126,20 @@ private:
 
 //==============================================================================
 // Struct definition for FFTDataGenerator
-template<typename BlockType>
 struct FFTDataGenerator
 {
-    // Function to produce FFT data suitable for rendering
-    void produceFFTDataForRendering(const juce::AudioBuffer<float>& audioData, const float negativeInfinity)
+    // Function to produce FFT data suitable for rendering, from getFFTSize() samples
+    const std::vector<float>& produceFFTDataForRendering(const float* audioData, const float negativeInfinity)
     {
         // Get the FFT size
         const auto fftSize = getFFTSize();
 
         // Reset the FFT data and copy audio data into it
         fftData.assign(fftData.size(), 0);
-        auto* readIndex = audioData.getReadPointer(0);
-        std::copy(readIndex, readIndex + fftSize, fftData.begin());
+        std::copy(audioData, audioData + fftSize, fftData.begin());
 
         // Apply windowing to the FFT data
-        window->multiplyWithWindowingTable(fftData.data(), fftSize);
+        window->multiplyWithWindowingTable(fftData.data(), (size_t)fftSize);
 
         // Perform forward FFT
         forwardFFT->performFrequencyOnlyForwardTransform(fftData.data());
@@ -150,7 +148,7 @@ struct FFTDataGenerator
         int numBins = (int)fftSize / 2;
         for (int i = 0; i < numBins; ++i)
         {
-            auto v = fftData[i];
+            auto v = fftData[(size_t)i];
             if (!std::isinf(v) && !std::isnan(v))
             {
                 v /= float(numBins);
@@ -159,11 +157,10 @@ struct FFTDataGenerator
             {
                 v = 0.f;
             }
-            fftData[i] = juce::Decibels::gainToDecibels(v, negativeInfinity);
+            fftData[(size_t)i] = juce::Decibels::gainToDecibels(v, negativeInfinity);
         }
 
-        // Push the processed FFT data into the FIFO
-        fftDataFifo.push(fftData);
+        return fftData;
     }
 
     // Function to change the FFT order
@@ -175,14 +172,11 @@ struct FFTDataGenerator
 
         // Recreate forward FFT and windowing objects
         forwardFFT = std::make_unique<juce::dsp::FFT>(order);
-        window = std::make_unique<juce::dsp::WindowingFunction<float>>(fftSize, juce::dsp::WindowingFunction<float>::blackmanHarris);
+        window = std::make_unique<juce::dsp::WindowingFunction<float>>((size_t)fftSize, juce::dsp::WindowingFunction<float>::blackmanHarris);
 
         // Clear and resize the FFT data buffer
         fftData.clear();
-        fftData.resize(fftSize * 2, 0);
-
-        // Prepare the FIFO with the new size
-        fftDataFifo.prepare(fftData.size());
+        fftData.resize((size_t)fftSize * 2, 0);
     }
 
     // Function to get the FFT size
@@ -191,33 +185,20 @@ struct FFTDataGenerator
         return 1 << order;
     }
 
-    // Function to get the number of available FFT data blocks in the FIFO
-    int getNumAvailableFFTDataBlocks() const
-    {
-        return fftDataFifo.getNumAvailableForReading();
-    }
-
-    // Function to retrieve FFT data from the FIFO
-    bool getFFTData(BlockType& fftData)
-    {
-        return fftDataFifo.pull(fftData);
-    }
-
 private:
-    FFTOrder order; // Order of the FFT
-    BlockType fftData; // Buffer for FFT data
+    FFTOrder order = FFTOrder::order2048; // Order of the FFT
+    std::vector<float> fftData; // Buffer for FFT data
     std::unique_ptr<juce::dsp::FFT> forwardFFT; // Forward FFT object
     std::unique_ptr<juce::dsp::WindowingFunction<float>> window; // Windowing function object
-    FifoSpectrumAnalyzer<BlockType> fftDataFifo; // FIFO for storing FFT data
 };
 
 //==============================================================================
 // Struct definition for AnalyzerPathGenerator
-template<typename PathType>
 struct AnalyzerPathGenerator
 {
     // Function to generate a path based on render data, FFT bounds, etc.
-    void generatePath(const std::vector<float>& renderData,
+    void generatePath(juce::Path& p,
+        const std::vector<float>& renderData,
         juce::Rectangle<float> fftBounds,
         int fftSize,
         float binWidth,
@@ -231,10 +212,9 @@ struct AnalyzerPathGenerator
         // Calculate the number of FFT bins
         int numBins = (int)fftSize / 2;
 
-        // Create a new path
-        PathType p;
-        // Preallocate space for the path
-        p.preallocateSpace(3 * (int)fftBounds.getWidth());
+        // Reuse the path's storage from the previous frame
+        p.clear();
+        p.preallocateSpace(3 * numBins);
 
         // Lambda function to map render data to y-coordinates
         auto map = [bottom, top, negativeInfinity](float v)
@@ -256,41 +236,22 @@ struct AnalyzerPathGenerator
         for (int binNum = 1; binNum < numBins; binNum += pathResolution)
         {
             // Map the render data to a y-coordinate
-            y = map(renderData[binNum]);
+            y = map(renderData[(size_t)binNum]);
 
             // If y-coordinate is not NaN or infinity, create a path segment
             if (!std::isnan(y) && !std::isinf(y))
             {
                 // Calculate the frequency of the bin
-                auto binFreq = binNum * binWidth;
+                auto binFreq = (float)binNum * binWidth;
                 // Normalize the bin's x-coordinate
                 auto normalizedBinX = juce::mapFromLog10(binFreq, 20.f, 20000.f);
                 // Calculate the actual x-coordinate in the FFT bounds
-                int binX = std::floor(normalizedBinX * width);
+                auto binX = std::floor(normalizedBinX * width);
                 // Add a line segment to the path
                 p.lineTo(binX, y);
             }
         }
-
-        // Push the generated path to the path FIFO
-        pathFifo.push(p);
     }
-
-    // Function to get the number of paths available in the FIFO
-    int getNumPathsAvailable() const
-    {
-        return pathFifo.getNumAvailableForReading();
-    }
-
-    // Function to retrieve a path from the FIFO
-    bool getPath(PathType& path)
-    {
-        return pathFifo.pull(path);
-    }
-
-private:
-    // FIFO for storing generated paths
-    FifoSpectrumAnalyzer<PathType> pathFifo;
 };
 
 //==============================================================================
@@ -298,38 +259,33 @@ private:
 struct PathProducer
 {
     // Constructor for PathProducer
-    PathProducer(SingleChannelSampleFifo<MultiMeterAudioProcessor::BlockType>& scsf) :
-        leftChannelFifo(&scsf)
+    PathProducer()
     {
         // Initialize the FFT data generator and set the FFT order to 2048
-        leftChannelFFTDataGenerator.changeOrder(FFTOrder::order2048);
-        // Set the size of the mono buffer to match the FFT size
-        monoBuffer.setSize(1, leftChannelFFTDataGenerator.getFFTSize());
+        fftDataGenerator.changeOrder(FFTOrder::order2048);
     }
 
-    // Function to process FFT data
-    void process(juce::Rectangle<float> fftBounds, double sampleRate);
+    // Function to get the number of samples that process() needs
+    int getFFTSize() const { return fftDataGenerator.getFFTSize(); }
+
+    // Function to produce the path from the most recent getFFTSize() samples of one channel
+    void process(const float* samples, juce::Rectangle<float> fftBounds, double sampleRate);
 
     // Function to get the path
-    juce::Path getPath() { return leftChannelFFTPath; }
+    const juce::Path& getPath() const { return fftPath; }
 
 private:
-    // Pointer to the single channel sample FIFO
-    SingleChannelSampleFifo<MultiMeterAudioProcessor::BlockType>* leftChannelFifo;
-    // Buffer for mono audio data
-    juce::AudioBuffer<float> monoBuffer;
-    // FFT data generator for the left channel
-    FFTDataGenerator<std::vector<float>> leftChannelFFTDataGenerator;
+    // FFT data generator for the channel
+    FFTDataGenerator fftDataGenerator;
     // Path generator for analyzer
-    AnalyzerPathGenerator<juce::Path> pathProducer;
-    // Path for the FFT of the left channel
-    juce::Path leftChannelFFTPath;
+    AnalyzerPathGenerator pathGenerator;
+    // Path for the FFT of the channel
+    juce::Path fftPath;
 };
 
 //==============================================================================
 // Class definition for ResponseCurveComponent
-struct ResponseCurveComponent : juce::Component,
-    juce::Timer
+struct ResponseCurveComponent : juce::Component
 {
     // Constructor
     ResponseCurveComponent(MultiMeterAudioProcessor&);
@@ -340,8 +296,8 @@ struct ResponseCurveComponent : juce::Component,
     // Overrides the paintOverChildren function to draw on top of the children
     void paintOverChildren(Graphics& g) override;
 
-    // Overrides the timerCallback function to handle timer events
-    void timerCallback() override;
+    // Analyzes the most recent audio and repaints, called by the editor once per frame
+    void update();
 
     // Overrides the resized function to handle resizing of the component
     void resized() override;
@@ -357,9 +313,6 @@ private:
     // Grid for spectrum analysis
     SpectrumGrid logGrid;
 
-    // Chain for mono processing
-    MonoChain monoChain;
-
     // Function to get the area to render
     juce::Rectangle<int> getRenderArea();
 
@@ -368,4 +321,10 @@ private:
 
     // Path producers for left and right channels
     PathProducer leftPathProducer, rightPathProducer;
+
+    // The most recent samples of both channels, which the FFTs analyze
+    juce::AudioBuffer<float> analysisBuffer;
+
+    // The ring buffer's sample count at the last analysis, to skip frames without new audio
+    juce::uint64 lastTotalWritten = 0;
 };

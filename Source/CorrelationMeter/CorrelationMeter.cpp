@@ -3,16 +3,6 @@
 
 //==============================================================================
 // Implementation for the CorrelationMeter class
-CorrelationMeter::CorrelationMeter(juce::AudioBuffer<float>& buf, double sampleRate) : buffer(buf)
-{
-    // Initialize the filters with low-pass coefficients
-    for (auto& filter : filters)
-    {
-        auto coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 20000.f);
-        filter.coefficients = coefficients;
-    }
-}
-
 void CorrelationMeter::paint(juce::Graphics& g)
 {
     // Fill the background with the base color
@@ -22,11 +12,11 @@ void CorrelationMeter::paint(juce::Graphics& g)
     // Divide the area into two parts: slowBounds and fastBounds
     auto slowBounds = getLocalBounds().removeFromTop(getLocalBounds().getHeight() / 3);
 
-    // Draw the average for peakAverager in slowBounds with a border
-    drawAverage(g, slowBounds, peakAverager.getAvg(), true);
+    // Draw the fast correlation reading in the top strip with a border
+    drawAverage(g, slowBounds, fastCorrelation, true);
 
-    // Draw the average for slowAverager in fastBounds with a border
-    drawAverage(g, getLocalBounds(), slowAverager.getAvg(), true);
+    // Draw the slow correlation reading over the whole meter with a border
+    drawAverage(g, getLocalBounds(), slowCorrelation, true);
 
     // Draw the border around the component
     Path border;
@@ -38,41 +28,15 @@ void CorrelationMeter::paint(juce::Graphics& g)
     g.fillPath(border);
 }
 
-void CorrelationMeter::update(juce::int64 average_time)
+void CorrelationMeter::update(float newFastCorrelation, float newSlowCorrelation)
 {
-    auto numSamples = buffer.getNumSamples();
-
-    // Set the duration for averaging for both slow and peak averagers
-    peakAverager.setAveragerDuration(average_time);
-    slowAverager.setAveragerDuration(average_time);
-
-    for (int i = 0; i < numSamples; i++)
+    // Repaint the component only when a reading has changed
+    if (! juce::exactlyEqual(fastCorrelation, newFastCorrelation) || ! juce::exactlyEqual(slowCorrelation, newSlowCorrelation))
     {
-        auto left = buffer.getSample(0, i);
-        auto right = buffer.getSample(1, i);
-
-        // Calculate correlation using the filters
-        auto numerator = filters[0].processSample(left * right);
-        auto denominator = sqrt(filters[1].processSample(left * left) * filters[2].processSample(right * right));
-
-        if (std::isnan(numerator) || std::isinf(numerator) ||
-            std::isnan(denominator) || std::isinf(denominator) || denominator == 0.0f)
-        {
-            // Handle special cases where correlation calculation fails
-            peakAverager.add(0.f);
-            slowAverager.add(0.f);
-        }
-        else
-        {
-            // Calculate correlation and add it to both averagers
-            auto correlation = numerator / denominator;
-            peakAverager.add(correlation);
-            slowAverager.add(correlation);
-        }
+        fastCorrelation = newFastCorrelation;
+        slowCorrelation = newSlowCorrelation;
+        repaint();
     }
-
-    // Repaint the component after updating the correlation
-    repaint();
 }
 
 void CorrelationMeter::drawAverage(juce::Graphics& g, juce::Rectangle<int> bounds, float avg, bool drawBorder)

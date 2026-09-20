@@ -52,6 +52,12 @@ To run the unit tests:
 ctest --test-dir build -C Release --output-on-failure
 ```
 
+To save a picture of the editor running a test signal, without opening a host:
+
+```bash
+build/MultiMeterSnapshot_artefacts/Release/MultiMeterSnapshot editor.png
+```
+
 ## Roadmap
 
 Version 2.0 is in progress. See [ROADMAP.md](ROADMAP.md) for the plan.

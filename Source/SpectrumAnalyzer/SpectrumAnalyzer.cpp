@@ -376,63 +376,25 @@ void SpectrumGrid::addLabels()
 
 //==============================================================================
 // Implementation for the PathProducer class
-void PathProducer::process(juce::Rectangle<float> fftBounds, double sampleRate)
+void PathProducer::process(const float* samples, juce::Rectangle<float> fftBounds, double sampleRate)
 {
-    juce::AudioBuffer<float> tempIncomingBuffer;
-
-    // Process available audio buffers in the FIFO
-    while (leftChannelFifo->getNumCompleteBuffersAvailable() > 0)
-    {
-        // If an audio buffer is available, process it
-        if (leftChannelFifo->getAudioBuffer(tempIncomingBuffer))
-        {
-            auto size = tempIncomingBuffer.getNumSamples();
-
-            // Copy samples from the FIFO buffer to the mono buffer
-            juce::FloatVectorOperations::copy(monoBuffer.getWritePointer(0, 0),
-                monoBuffer.getReadPointer(0, size),
-                monoBuffer.getNumSamples() - size);
-
-            juce::FloatVectorOperations::copy(monoBuffer.getWritePointer(0, monoBuffer.getNumSamples() - size),
-                tempIncomingBuffer.getReadPointer(0, 0),
-                size);
-
-            // Produce FFT data for rendering
-            leftChannelFFTDataGenerator.produceFFTDataForRendering(monoBuffer, -120.f);
-        }
-    }
-
-    const auto fftSize = leftChannelFFTDataGenerator.getFFTSize();
+    const auto fftSize = fftDataGenerator.getFFTSize();
     const auto binWidth = sampleRate / double(fftSize);
 
-    // Process available FFT data blocks
-    while (leftChannelFFTDataGenerator.getNumAvailableFFTDataBlocks() > 0)
-    {
-        std::vector<float> fftData;
-        if (leftChannelFFTDataGenerator.getFFTData(fftData))
-        {
-            // Generate path from FFT data
-            pathProducer.generatePath(fftData, fftBounds, fftSize, binWidth, -120.f);
-        }
-    }
-
-    // Retrieve paths from the path producer
-    while (pathProducer.getNumPathsAvailable() > 0)
-    {
-        pathProducer.getPath(leftChannelFFTPath);
-    }
+    // Produce FFT data for rendering, and generate the path from it
+    const auto& fftData = fftDataGenerator.produceFFTDataForRendering(samples, -120.f);
+    pathGenerator.generatePath(fftPath, fftData, fftBounds, fftSize, (float)binWidth, -120.f);
 }
 
 //==============================================================================
 // Implementation for the ResponseCurveComponent class
 // Constructor for ResponseCurveComponent
 ResponseCurveComponent::ResponseCurveComponent(MultiMeterAudioProcessor& p) : audioProcessor(p),
-logGrid(p.apvts),
-leftPathProducer(audioProcessor.leftChannelFifo),
-rightPathProducer(audioProcessor.rightChannelFifo)
+logGrid(p.apvts)
 {
-    // Start a timer with a frequency of 60Hz
-    startTimerHz(60);
+    // Both channels are analyzed with the same FFT size
+    analysisBuffer.setSize(2, leftPathProducer.getFFTSize());
+    analysisBuffer.clear();
 
     // Add the logGrid component and make it visible
     addAndMakeVisible(logGrid);
@@ -485,17 +447,30 @@ void ResponseCurveComponent::paintOverChildren(Graphics& g)
     g.fillPath(border);
 }
 
-// Timer callback function for ResponseCurveComponent
-void ResponseCurveComponent::timerCallback()
+// Update function for ResponseCurveComponent
+void ResponseCurveComponent::update()
 {
+    auto& ringBuffer = audioProcessor.sampleRingBuffer;
+
+    // There is nothing new to draw if no audio has arrived since the last frame
+    const auto totalWritten = ringBuffer.getTotalWritten();
+    if (totalWritten == lastTotalWritten)
+        return;
+
+    // Keep the previous curves if the audio thread overwrote the samples during the copy
+    if (!ringBuffer.readLatest(analysisBuffer.getWritePointer(0), analysisBuffer.getWritePointer(1), analysisBuffer.getNumSamples()))
+        return;
+
+    lastTotalWritten = totalWritten;
+
     // Get the bounds for FFT analysis
     auto fftBounds = getAnalysisArea().toFloat();
     // Get the sample rate
     auto sampleRate = audioProcessor.getSampleRate();
 
     // Process FFT for left and right channels
-    leftPathProducer.process(fftBounds, sampleRate);
-    rightPathProducer.process(fftBounds, sampleRate);
+    leftPathProducer.process(analysisBuffer.getReadPointer(0), fftBounds, sampleRate);
+    rightPathProducer.process(analysisBuffer.getReadPointer(1), fftBounds, sampleRate);
     // Repaint the component
     repaint();
 }

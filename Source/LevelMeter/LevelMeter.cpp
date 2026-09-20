@@ -42,7 +42,7 @@ void Meter::paint(juce::Graphics& g)
     auto r = getLocalBounds().toFloat();
     r.setHeight(5.f);
 
-    if (decayingValueHolder.getHoldTime() != 0)
+    if (decayingValueHolder.getHoldTime() > 0.f)
     {
         r.setY(decayValueMapping);
     }
@@ -56,17 +56,16 @@ void Meter::paint(juce::Graphics& g)
 
 }
 
-void Meter::update(float dbLevel, float decay_rate, float hold_time_, bool reset_hold, bool show_tick_)
+void Meter::update(float dbLevel, float decay_rate, float hold_time_, bool reset_hold, bool show_tick_, float elapsedSeconds)
 {
     // Pass in a decibel value and store it in peakDb
     peakDb = dbLevel;
     show_tick = show_tick_;
 
-    // Here the setLevelMeterDecay and setHoldTime will actually set the decay_rate and holdTime variable to the meter
-    decayingValueHolder.updateHeldValue(dbLevel);
-    // Because the decay rate could change anytime so we will pass the decay rate as argument from meter update function
+    // Because the decay rate and hold time could change anytime, they are passed in with every update
     decayingValueHolder.setLevelMeterDecay(decay_rate);
     decayingValueHolder.setHoldTime(hold_time_);
+    decayingValueHolder.updateHeldValue(dbLevel, elapsedSeconds);
 
     // Call repaint()
     if (reset_hold)
@@ -161,55 +160,38 @@ std::vector<Tick> DbScale::getTicks(int dbDivision, juce::Rectangle<int> meterBo
 
 //==============================================================================
 // Implementation for the ValueHolder class
-ValueHolder::ValueHolder() : timeOfPeak(juce::Time::currentTimeMillis())
-{
-    startTimerHz(60); // Start the timer with a frequency of 60 Hz
-}
-
-ValueHolder::~ValueHolder()
-{
-    stopTimer(); // Stop the timer
-}
-
-void ValueHolder::timerCallback()
-{
-    // Calculate the elapsed time since the last peak
-    juce::int64 now = juce::Time::currentTimeMillis();
-    juce::int64 elapsed = now - timeOfPeak;
-
-    // If the elapsed time exceeds the hold duration, update the held value
-    if (elapsed > durationToHoldForMs)
-    {
-        // Check if the current value is over the threshold
-        isOverThreshold = (currentValue > threshold);
-
-        // Reset the held value if the current value is not over the threshold
-        if (!isOverThreshold)
-        {
-            heldValue = NEGATIVE_INFINITY;
-        }
-    }
-}
-
 void ValueHolder::setThreshold(float th)
 {
     threshold = th; // Set the threshold value
     isOverThreshold = (currentValue > threshold); // Update the over threshold flag
 }
 
-void ValueHolder::updateHeldValue(float v)
+void ValueHolder::updateHeldValue(float v, float elapsedSeconds)
 {
+    secondsSincePeak += elapsedSeconds;
+
     // Update the held value if the new value is over the threshold
     if (v > threshold)
     {
         isOverThreshold = true; // Set the over threshold flag
-        timeOfPeak = juce::Time::currentTimeMillis(); // Update the time of peak
+        secondsSincePeak = 0.f; // Restart the hold
         if (v > heldValue)
         {
             heldValue = v; // Update the held value
         }
     }
     currentValue = v; // Update the current value
+
+    // Once the hold duration has passed, release the held value
+    if (secondsSincePeak * 1000.f > static_cast<float>(durationToHoldForMs))
+    {
+        isOverThreshold = (currentValue > threshold);
+
+        if (!isOverThreshold)
+        {
+            heldValue = NEGATIVE_INFINITY;
+        }
+    }
 }
 
 void ValueHolder::setHoldTime(int ms)
@@ -269,22 +251,23 @@ void MacroMeter::resized()
     }
 }
 
-void MacroMeter::update(float level, float decay_rate, bool show_peak, bool show_avg, float hold_time_, bool reset_hold, bool show_tick_)
+void MacroMeter::update(float level, float decay_rate, bool show_peak, bool show_avg, float hold_time_, bool reset_hold, bool show_tick_, float elapsedSeconds)
 {
     // Update the child components with the provided parameters
-    textMeter.update(level);
-    instantMeter.update(level, decay_rate, hold_time_, reset_hold, show_tick_);
-    averageMeter.update(averager.getAvg(), decay_rate, hold_time_, reset_hold, show_tick_);
+    textMeter.update(level, elapsedSeconds);
+    instantMeter.update(level, decay_rate, hold_time_, reset_hold, show_tick_, elapsedSeconds);
+    averageMeter.update(averager.getAvg(), decay_rate, hold_time_, reset_hold, show_tick_, elapsedSeconds);
 
     // Add the current level to the averager
     averager.add(level);
 
-    // Update the show_peak_ and show_avg_ flags
-    show_peak_ = show_peak;
-    show_avg_ = show_avg;
-
-    // Resize the components
-    resized();
+    // Lay the meters out again only when the view has changed
+    if (show_peak_ != show_peak || show_avg_ != show_avg)
+    {
+        show_peak_ = show_peak;
+        show_avg_ = show_avg;
+        resized();
+    }
 }
 
 //==============================================================================
@@ -330,19 +313,16 @@ void StereoMeter::resized()
     dbScale.buildBackgroundImage(10, bounds.withTrimmedTop(13), NEGATIVE_INFINITY, MAX_DECIBELS);
 }
 
-void StereoMeter::update(float leftChanDb, float rightChanDb, float decay_rate, int meterViewID, bool show_tick, float hold_time_, bool reset_hold)
+void StereoMeter::update(float leftChanDb, float rightChanDb, float decay_rate, int meterViewID, bool show_tick, float hold_time_, bool reset_hold, float elapsedSeconds)
 {
     // Determine whether to show peak and average based on meterViewID
     bool show_peak = !meterViewID || meterViewID == 1;
     bool show_avg = !meterViewID || meterViewID == 2;
 
     // Update the leftMeter and rightMeter components with the provided parameters
-    leftMeter.update(leftChanDb, decay_rate, show_peak, show_avg, hold_time_, reset_hold, show_tick);
-    rightMeter.update(rightChanDb, decay_rate, show_peak, show_avg, hold_time_, reset_hold, show_tick);
-
-    // Resize the components and repaint
-    resized();
-    repaint();
+    // The meters repaint themselves, and the scale only changes when the component is resized
+    leftMeter.update(leftChanDb, decay_rate, show_peak, show_avg, hold_time_, reset_hold, show_tick, elapsedSeconds);
+    rightMeter.update(rightChanDb, decay_rate, show_peak, show_avg, hold_time_, reset_hold, show_tick, elapsedSeconds);
 }
 
 void StereoMeter::setText(juce::String labelName)
@@ -395,54 +375,37 @@ void TextMeter::paint(juce::Graphics& g)
         1); // number of lines
 }
 
-void TextMeter::update(float valueDb)
+void TextMeter::update(float valueDb, float elapsedSeconds)
 {
     // Update the cached value, held value, and repaint
     cachedValueDb = valueDb;
-    valueHolder.updateHeldValue(valueDb);
+    valueHolder.updateHeldValue(valueDb, elapsedSeconds);
     repaint();
 }
 
 //==============================================================================
 // Implementation for the DecayingValueHolder class
-DecayingValueHolder::DecayingValueHolder()
+void DecayingValueHolder::updateHeldValue(float input, float elapsedSeconds)
 {
-    // Set the default decay rate to 3 dB per second and start the timer
-    setLevelMeterDecay(3.f);
-    startTimerHz(60);
-}
+    secondsSincePeak += elapsedSeconds;
 
-void DecayingValueHolder::updateHeldValue(float input)
-{
-    // Update the held value and peak time if the input value is greater than the current value
+    // Update the held value and restart the hold if the input value is greater than the current value
     if (input > currentValue)
     {
-        peakTime = getNow();
+        secondsSincePeak = 0.f;
         currentValue = input;
         resetLevelMeterDecayMultiplier();
     }
-}
-
-void DecayingValueHolder::setCurrentValue(float val)
-{
-    // Set the current value to the specified value
-    currentValue = val;
-}
-
-void DecayingValueHolder::timerCallback()
-{
-    juce::int64 now = getNow();
-
     // If the elapsed time exceeds the hold time, decay the current value
-    if (now - peakTime > holdTime)
+    else if (secondsSincePeak > holdTimeSeconds)
     {
-        currentValue -= decayRatePerFrame * decayRateMultiplier;
+        currentValue -= decayRatePerSecond * elapsedSeconds * decayRateMultiplier;
 
         // Ensure the current value stays within the specified range
         currentValue = juce::jlimit(NEGATIVE_INFINITY, MAX_DECIBELS, currentValue);
 
-        // Increase the decay rate multiplier
-        decayRateMultiplier *= 1.05;
+        // Increase the decay rate multiplier, by 5% for every 60th of a second
+        decayRateMultiplier *= std::pow(1.05f, elapsedSeconds * 60.f);
 
         // Reset the decay rate multiplier if the current value becomes negative infinity
         if (currentValue <= NEGATIVE_INFINITY)
@@ -452,8 +415,8 @@ void DecayingValueHolder::timerCallback()
     }
 }
 
-juce::int64 DecayingValueHolder::getHoldTime()
+void DecayingValueHolder::setCurrentValue(float val)
 {
-    // Return the hold time
-    return holdTime;
+    // Set the current value to the specified value
+    currentValue = val;
 }

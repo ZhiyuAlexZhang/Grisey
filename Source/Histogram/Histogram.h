@@ -36,6 +36,9 @@ struct ReadAllAfterWriteCircularBuffer
     // Write a new element to the circular buffer
     void write(T t)
     {
+        if (getSize() == 0) // Nothing can be stored before the component has a width
+            return;
+
         auto indexCopy = writeIndex.load(); // Load the current write index
         data[indexCopy] = t; // Write the element at the current index
         ++indexCopy; // Increment the index
@@ -104,6 +107,9 @@ private:
         juce::Rectangle<float> bounds)
     {
         p.clear(); // Clear the path
+        if (buffer.getSize() == 0)
+            return {};
+
         auto bufferSizeCopy = buffer.getSize(); // Get a copy of buffer size
         auto bottomOfBoundsCopy = bounds.getBottom(); // Get the bottom of the bounds
         auto& bufferDataCopy = buffer.getData(); // Get a reference to buffer data

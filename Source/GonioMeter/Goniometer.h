@@ -81,8 +81,12 @@ private:
 //==============================================================================
 struct Goniometer : juce::Component
 {
+    // The number of most recent samples that are plotted in every frame. At
+    // 60 frames per second this covers every sample up to a 61.4 kHz sample rate
+    static constexpr int numSamplesToPlot = 1024;
+
     // Constructor
-    Goniometer(juce::AudioBuffer<float>& bufferInput);
+    Goniometer();
 
     // Paint method override
     void paint(juce::Graphics& g) override;
@@ -90,8 +94,8 @@ struct Goniometer : juce::Component
     // Resized method override
     void resized() override;
 
-    // Update method to update the visualization with new audio data
-    void update(juce::AudioBuffer<float>& buffer);
+    // Returns the stereo buffer to fill with the samples to plot, before calling repaint()
+    juce::AudioBuffer<float>& getBuffer() { return internalBuffer; }
 
     // Method to update the visualization scaling coefficient
     void updateCoeff(float new_db);
@@ -100,10 +104,7 @@ private:
     // Helper method to draw the background
     void drawBackground(juce::Graphics& g);
 
-    // Reference to the audio buffer
-    juce::AudioBuffer<float>& buffer;
-
-    // Internal buffer for processing
+    // The samples to plot
     juce::AudioBuffer<float> internalBuffer;
 
     // Path for drawing the visualization

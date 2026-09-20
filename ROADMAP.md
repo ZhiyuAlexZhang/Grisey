@@ -17,16 +17,21 @@ resizable, GPU-friendly design in the spirit of modern mastering tools.
 - [x] Correct the `Channel` enum, which had left and right reversed
 - [x] Add unit tests and a GitHub Actions build (macOS, Windows) that runs pluginval
 
-## Phase 1: Engine rewrite
+## Phase 1: Engine rewrite (done)
 
-- [ ] Compute peak, RMS, and correlation on the audio thread from every sample, and publish
-      them to the GUI through atomics or a lock-free snapshot. Today the editor measures only
-      the last block it pulls per frame, so peaks in the other blocks are missed.
-- [ ] Replace the block FIFOs with one sample ring buffer that feeds the scope and the FFT
-- [ ] Move every setting into APVTS and save versioned state. Today settings are written as a
-      raw binary stream outside the parameter tree.
-- [ ] Replace the five separate 60 Hz timers with one `VBlankAttachment`
-- [ ] Unit tests for each measurement
+- [x] Measure peak, RMS, and correlation on the audio thread from every sample
+      (`Source/Engine/MeterEngine.h`), and publish them to the GUI through atomics. Version 1
+      measured only the last block of each frame, so it missed peaks in the other blocks.
+- [x] Replace the block FIFOs with one lock-free sample ring buffer
+      (`Source/Engine/SampleRingBuffer.h`) that feeds the goniometer and the FFT
+- [x] Move every setting into APVTS (`Source/Parameters.h`) and save versioned XML state.
+      Sessions saved by version 1 still load their settings.
+- [x] Replace the fourteen 60 Hz timers with one `VBlankAttachment`. Meter ballistics are
+      now time-based, so they behave the same on 60 Hz and 120 Hz displays.
+- [x] Show silence when the host stops sending audio, instead of freezing the last reading
+- [x] Make "inf" tick hold truly infinite (it was 60 seconds)
+- [x] Unit tests for each measurement, the ring buffer, and state loading
+- [x] `MultiMeterSnapshot`, a tool that saves a picture of the editor running a test signal
 
 ## Phase 2: New meters
 

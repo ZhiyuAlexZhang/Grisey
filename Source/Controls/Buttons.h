@@ -130,6 +130,7 @@ public:
     Switch(const String& on_text, const String& off_text) : onText(on_text), offText(off_text)
     {
         setLookAndFeel(&lookAndFeel);
+        setButtonText(offText);
     }
 
     ~Switch() override
@@ -137,10 +138,11 @@ public:
         setLookAndFeel(nullptr);
     }
 
-    // Override the clicked method to update the button text when clicked
-    void clicked() override
+    // Override the buttonStateChanged method to update the button text whenever the toggle state changes,
+    // whether the change comes from a click or from the parameter that the button is attached to
+    void buttonStateChanged() override
     {
-        ToggleButton::clicked();
+        ToggleButton::buttonStateChanged();
         // Update the button text based on the toggle state
         if (getToggleState())
             setButtonText(onText);
@@ -155,13 +157,16 @@ private:
 //==============================================================================
 // This class represents a chain of toggle buttons used for controls where multiple options need to be toggled
 // It allows toggling between 2 or more options.
-class ToggleChain : public Component
+class ToggleChain : public Component, private Button::Listener
 {
 private:
     ButtonsLook lookAndFeel; // Look and feel for buttons
     int selectedId{ 0 }; // Currently selected option ID
 
 public:
+    // Called with the ID of the option that the user has clicked
+    std::function<void(int)> onChange;
+
     ToggleChain()
     {
         setLookAndFeel(&lookAndFeel); // Set the look and feel
@@ -172,11 +177,11 @@ public:
         setLookAndFeel(nullptr); // Reset the look and feel
     }
 
-    // Adds an option with a specified name and listener to the toggle chain
-    void addOption(const String& name, Button::Listener& listener)
+    // Adds an option with a specified name to the toggle chain
+    void addOption(const String& name)
     {
         auto toggleButton = std::make_unique<ToggleButton>(name); // Create a new toggle button
-        toggleButton->addListener(&listener); // Add listener to the toggle button
+        toggleButton->addListener(this); // Listen to the toggle button
         toggleButton->setClickingTogglesState(false); // Set clicking to not toggle state
         addAndMakeVisible(toggleButton.get()); // Add button to the UI
         toggleButtons.add(std::move(toggleButton)); // Add button to the array
@@ -188,51 +193,40 @@ public:
         updateLayout(); // Update layout on resize
     }
 
-    // Sets the selection to the specified ID
+    // Sets the selection to the specified ID, without calling onChange
     void setSelection(int id)
     {
-        if (id < toggleButtons.size())
+        if (id >= 0 && id < toggleButtons.size())
         {
-            toggleButtons[id]->setToggleState(true, dontSendNotification); // Set toggle state of the specified button
+            for (int i = 0; i < toggleButtons.size(); ++i)
+                toggleButtons[i]->setToggleState(i == id, dontSendNotification); // Toggle only the specified button
+
             selectedId = id; // Update selected ID
         }
     }
 
     // Returns the ID of the currently selected option
-    int getSelectedId()
+    int getSelectedId() const
     {
         return selectedId; // Return selected ID
     }
 
+private:
     // Handles button click events
-    void buttonClicked(Button* button)
+    void buttonClicked(Button* button) override
     {
-        ToggleButton* toggleButton = dynamic_cast<ToggleButton*>(button); // Cast to ToggleButton
-
-        if (toggleButton != nullptr)
+        for (int i = 0; i < toggleButtons.size(); ++i)
         {
-            if (std::find(toggleButtons.begin(), toggleButtons.end(), toggleButton) != toggleButtons.end())
+            if (toggleButtons[i] == button && i != selectedId)
             {
-                if (!toggleButton->getToggleState())
-                {
-                    for (int i = 0; i < toggleButtons.size(); ++i)
-                    {
-                        if (toggleButtons[i] == toggleButton)
-                        {
-                            selectedId = i; // Update selected ID
-                            toggleButton->setToggleState(true, dontSendNotification); // Toggle the clicked button
-                        }
-                        else
-                        {
-                            toggleButtons[i]->setToggleState(false, dontSendNotification); // Untoggle other buttons
-                        }
-                    }
-                }
+                setSelection(i); // Toggle the clicked button and untoggle the others
+
+                if (onChange)
+                    onChange(i);
             }
         }
     }
 
-private:
     // Updates the layout of the toggle buttons
     void updateLayout()
     {
@@ -252,12 +246,15 @@ private:
 
 //==============================================================================
 // This class represents a menu for switching between three different views: Goniometer, Spectrum Analyzer, and Histogram
-class SwitchButton : public Component {
+class SwitchButton : public Component, private Button::Listener {
 private:
     // ID representing the currently selected switch option
     int switchId{ 1 };
 
 public:
+    // Called with the ID of the view that the user has clicked
+    std::function<void(int)> onChange;
+
     // Constructor initializes the menu buttons and sets up their appearance and behavior
     SwitchButton() {
         setLookAndFeel(&lookAndFeel);
@@ -267,18 +264,17 @@ public:
         Spectrum.setButtonText("ANALYZER");
         Histogram.setButtonText("HISTOGRAM");
 
-        // Disabling toggling on click for the buttons
-        Goniometer.setClickingTogglesState(false);
-        Spectrum.setClickingTogglesState(false);
-        Histogram.setClickingTogglesState(false);
+        for (auto* button : buttons) {
+            // Disabling toggling on click for the buttons
+            button->setClickingTogglesState(false);
+            button->addListener(this);
 
-        // Adding buttons to the component and making them visible
-        addAndMakeVisible(Goniometer);
-        addAndMakeVisible(Spectrum);
-        addAndMakeVisible(Histogram);
+            // Adding buttons to the component and making them visible
+            addAndMakeVisible(button);
+        }
 
         // Setting Spectrum as the default active button
-        Spectrum.setToggleState(true, dontSendNotification);
+        setSelection(switchId);
 
         // Updating the layout of the buttons
         updateButtonLayout();
@@ -289,38 +285,13 @@ public:
         setLookAndFeel(nullptr);
     }
 
-    // Adds a listener to the menu buttons to handle their clicks
-    void addListener(Button::Listener& listener) {
-        Goniometer.addListener(&listener);
-        Spectrum.addListener(&listener);
-        Histogram.addListener(&listener);
-    }
+    // Sets the active view to the specified ID, without calling onChange
+    void setSelection(int id) {
+        if (id >= 0 && id < (int)buttons.size()) {
+            for (int i = 0; i < (int)buttons.size(); ++i)
+                buttons[(size_t)i]->setToggleState(i == id, dontSendNotification);
 
-    // Handles button clicks by disabling other options and updating the active switch ID
-    void buttonClicked(Button* button) {
-        if (button == &Goniometer) {
-            if (!Goniometer.getToggleState()) {
-                Goniometer.setToggleState(true, dontSendNotification);
-                Spectrum.setToggleState(false, dontSendNotification);
-                Histogram.setToggleState(false, dontSendNotification);
-            }
-            switchId = 0;
-        }
-        else if (button == &Spectrum) {
-            if (!Spectrum.getToggleState()) {
-                Spectrum.setToggleState(true, dontSendNotification);
-                Goniometer.setToggleState(false, dontSendNotification);
-                Histogram.setToggleState(false, dontSendNotification);
-            }
-            switchId = 1;
-        }
-        else if (button == &Histogram) {
-            if (!Histogram.getToggleState()) {
-                Histogram.setToggleState(true, dontSendNotification);
-                Goniometer.setToggleState(false, dontSendNotification);
-                Spectrum.setToggleState(false, dontSendNotification);
-            }
-            switchId = 2;
+            switchId = id;
         }
     }
 
@@ -335,8 +306,23 @@ public:
     }
 
 private:
+    // Handles button clicks by disabling other options and updating the active switch ID
+    void buttonClicked(Button* button) override {
+        for (int i = 0; i < (int)buttons.size(); ++i) {
+            if (buttons[(size_t)i] == button && i != switchId) {
+                setSelection(i);
+
+                if (onChange)
+                    onChange(i);
+            }
+        }
+    }
+
     // Toggle buttons representing the menu options
     ToggleButton Goniometer, Spectrum, Histogram;
+
+    // The buttons in the order of their view IDs
+    std::array<ToggleButton*, 3> buttons { &Goniometer, &Spectrum, &Histogram };
 
     // Custom look and feel for the buttons
     CustomLook lookAndFeel;

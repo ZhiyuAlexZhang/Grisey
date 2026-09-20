@@ -91,4 +91,13 @@ if(MULTIMETER_BUILD_TESTS)
     target_link_libraries(MultiMeterTests PRIVATE MultiMeter)
 
     add_test(NAME MultiMeterTests COMMAND MultiMeterTests)
+
+    # A development tool that saves a picture of the editor running a test signal
+    juce_add_console_app(MultiMeterSnapshot PRODUCT_NAME "MultiMeterSnapshot")
+    target_sources(MultiMeterSnapshot PRIVATE Tests/Snapshot.cpp)
+    target_include_directories(MultiMeterSnapshot PRIVATE
+        $<TARGET_PROPERTY:MultiMeter,INCLUDE_DIRECTORIES>)
+    target_compile_definitions(MultiMeterSnapshot PRIVATE
+        $<TARGET_PROPERTY:MultiMeter,COMPILE_DEFINITIONS>)
+    target_link_libraries(MultiMeterSnapshot PRIVATE MultiMeter)
 endif()

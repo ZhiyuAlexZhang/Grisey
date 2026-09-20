@@ -31,18 +31,13 @@ private:
 };
 
 //==============================================================================
-struct ValueHolder : juce::Timer
+struct ValueHolder
 {
-    ValueHolder();
-    ~ValueHolder();
-
-    void timerCallback() override;
-
     // Sets the threshold value
     void setThreshold(float th);
 
-    // Updates the held value
-    void updateHeldValue(float v);
+    // Updates the held value, elapsedSeconds is the time since the last update
+    void updateHeldValue(float v, float elapsedSeconds = 0.f);
 
     // Sets the duration to hold the value
     void setHoldTime(int ms);
@@ -60,7 +55,7 @@ private:
     float threshold = 0; // Threshold value
     float currentValue = NEGATIVE_INFINITY; // Current value
     float heldValue = NEGATIVE_INFINITY; // Held value
-    juce::int64 timeOfPeak; // Time of the peak value
+    float secondsSincePeak = 0.f; // Time since the value was last over the threshold
     int durationToHoldForMs{ 500 }; // Duration to hold the value in milliseconds
     bool isOverThreshold{ false }; // Flag indicating whether the value is over the threshold
 };
@@ -73,22 +68,21 @@ struct TextMeter : juce::Component
     // Paints the component
     void paint(juce::Graphics& g) override;
 
-    // Updates the displayed dB value
-    void update(float valueDb);
+    // Updates the displayed dB value, elapsedSeconds is the time since the last update
+    void update(float valueDb, float elapsedSeconds);
 
 private:
-    float cachedValueDb; // Cached dB value
+    float cachedValueDb = NEGATIVE_INFINITY; // Cached dB value
     ValueHolder valueHolder; // Value holder for managing the displayed value
 };
 
 
 //==============================================================================
-struct DecayingValueHolder : juce::Timer
+struct DecayingValueHolder
 {
-    DecayingValueHolder();
-
-    // Updates the held value with the input value
-    void updateHeldValue(float input);
+    // Updates the held value with the input value, then holds or decays it
+    // according to the time since the last update
+    void updateHeldValue(float input, float elapsedSeconds);
 
     // Returns the current value
     float getCurrentValue() const { return currentValue; };
@@ -96,32 +90,27 @@ struct DecayingValueHolder : juce::Timer
     // Returns whether the current value is over the threshold
     bool isOverThreshold() const { return currentValue > threshold; };
 
-    // Sets the hold time for the value
-    void setHoldTime(int ms) { holdTime = ms; };
+    // Sets the hold time for the value, which can be infinite
+    void setHoldTime(float seconds) { holdTimeSeconds = seconds; };
 
     // Sets the decay rate for the level meter
-    void setLevelMeterDecay(float dbPerSec) { decayRatePerFrame = dbPerSec / 60.f; };
+    void setLevelMeterDecay(float dbPerSec) { decayRatePerSecond = dbPerSec; };
 
     // Sets the current value
     void setCurrentValue(float val);
 
-    // Timer callback function
-    void timerCallback() override;
-
-    // Returns the hold time
-    juce::int64 getHoldTime();
+    // Returns the hold time in seconds
+    float getHoldTime() const { return holdTimeSeconds; };
 
 private:
-    static juce::int64 getNow() { return juce::Time::currentTimeMillis(); };
-
     // Resets the decay multiplier for the level meter
     void resetLevelMeterDecayMultiplier() { decayRateMultiplier = 1; };
 
     float currentValue{ NEGATIVE_INFINITY }; // Current value
-    juce::int64 peakTime = getNow(); // Time of the peak value
+    float secondsSincePeak = 0.f; // Time since the peak value
     float threshold = 0.f; // Threshold value
-    juce::int64 holdTime = 2000; // Hold time in milliseconds (default: 2 seconds)
-    float decayRatePerFrame{ 0 }; // Decay rate per frame
+    float holdTimeSeconds = 2.f; // Hold time in seconds (default: 2 seconds)
+    float decayRatePerSecond{ 3.f }; // Decay rate in dB per second
     float decayRateMultiplier{ 1 }; // Decay rate multiplier
 };
 
@@ -131,8 +120,9 @@ struct Meter : juce::Component
     // Paints the component
     void paint(juce::Graphics&) override;
 
-    // Updates the meter with the specified dB level, decay rate, hold time, reset flag, and show tick flag
-    void update(float dbLevel, float decay_rate, float hold_time_, bool reset_hold, bool show_tick_);
+    // Updates the meter with the specified dB level, decay rate, hold time in seconds, reset flag,
+    // show tick flag, and the time since the last update
+    void update(float dbLevel, float decay_rate, float hold_time_, bool reset_hold, bool show_tick_, float elapsedSeconds);
 
 private:
     float peakDb { NEGATIVE_INFINITY }; // Peak dB level
@@ -150,7 +140,7 @@ public:
     void resized() override;
 
     // Updates the macro meter with the specified parameters
-    void update(float level, float decay_rate, bool show_peak, bool shwo_avg, float hold_time_, bool reset_hold, bool show_tick_);
+    void update(float level, float decay_rate, bool show_peak, bool shwo_avg, float hold_time_, bool reset_hold, bool show_tick_, float elapsedSeconds);
 
 private:
     TextMeter textMeter; // Text meter component
@@ -173,8 +163,9 @@ public:
     // Called when the component is resized
     void resized() override;
 
-    // Updates the stereo meter with left and right channel dB levels, decay rate, meter view ID, show tick flag, hold time, and reset hold flag
-    void update(float leftChanDb, float rightChanDb, float decay_rate, int meterViewID, bool show_tick, float hold_time_, bool reset_hold);
+    // Updates the stereo meter with left and right channel dB levels, decay rate, meter view ID, show tick flag,
+    // hold time in seconds, reset hold flag, and the time since the last update
+    void update(float leftChanDb, float rightChanDb, float decay_rate, int meterViewID, bool show_tick, float hold_time_, bool reset_hold, float elapsedSeconds);
 
     // Sets the text label
     void setText(juce::String labelName);

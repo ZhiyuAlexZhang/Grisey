@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.png binary
+*.gif binary
+*.mov binary
+*.mp3 binary
+*.filtergraph -text

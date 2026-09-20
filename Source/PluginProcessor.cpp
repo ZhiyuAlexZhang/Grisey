@@ -26,8 +26,9 @@ MultiMeterAudioProcessor::MultiMeterAudioProcessor()
         *this,
         nullptr,
         "Parameters",
-        createParameterLayout())
+        Parameters::createLayout())
 {
+    averagerDurationParameter = apvts.getRawParameterValue(Parameters::ID::averagerDuration);
 }
 
 MultiMeterAudioProcessor::~MultiMeterAudioProcessor()
@@ -100,15 +101,11 @@ void MultiMeterAudioProcessor::changeProgramName (int index, const juce::String&
 void MultiMeterAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     // Use this method as the place to do any pre-playback initialization
-    
-    // Prepare the Fifo<> instance in prepareToPlay()
-    fifo.prepare(samplesPerBlock, 2);
-    analysisBuffer.setSize(2, samplesPerBlock, false, true, true);
-    analysisBuffer.clear();
-    
-    leftChannelFifo.prepare(samplesPerBlock);
-    rightChannelFifo.prepare(samplesPerBlock);
-    
+    juce::ignoreUnused(samplesPerBlock);
+
+    meterEngine.prepare(sampleRate);
+    sampleRingBuffer.reset();
+
     #if USE_OSC
         juce::dsp::ProcessSpec spec;
         spec.maximumBlockSize = (juce::uint32) samplesPerBlock;
@@ -181,23 +178,20 @@ void MultiMeterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
     #endif
     
     const int numChannels = buffer.getNumChannels();
-    const int numSamples = juce::jmin(buffer.getNumSamples(), analysisBuffer.getNumSamples());
+    const int numSamples = buffer.getNumSamples();
 
     if (numChannels > 0 && numSamples > 0)
     {
         // The meters always analyze a stereo signal, a mono input feeds both sides
-        analysisBuffer.copyFrom(0, 0, buffer, 0, 0, numSamples);
-        analysisBuffer.copyFrom(1, 0, buffer, juce::jmin(1, numChannels - 1), 0, numSamples);
+        const float* left = buffer.getReadPointer(0);
+        const float* right = buffer.getReadPointer(juce::jmin(1, numChannels - 1));
 
-        // A view of the samples in this block, which refers to analysisBuffer's memory
-        juce::AudioBuffer<float> block(analysisBuffer.getArrayOfWritePointers(), 2, numSamples);
+        const int averagerIndex = juce::roundToInt(averagerDurationParameter->load(std::memory_order_relaxed));
+        meterEngine.setSlowCorrelationSeconds(Parameters::valueAt(Parameters::averagerDurationsSeconds, averagerIndex));
 
-        // Push the current audio buffer to the FIFO for processing
-        fifo.push(block);
-
-        // Update the left and right channel FIFOs with the current audio buffer
-        leftChannelFifo.update(block);
-        rightChannelFifo.update(block);
+        // Every sample is measured here, the editor only reads the results
+        meterEngine.process(left, right, numSamples);
+        sampleRingBuffer.write(left, right, numSamples);
     }
 
 #if USE_OSC
@@ -220,45 +214,46 @@ juce::AudioProcessorEditor* MultiMeterAudioProcessor::createEditor()
 //==============================================================================
 void MultiMeterAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    // Serialize the state information to a memory block
-    juce::MemoryOutputStream stream(destData, true);
+    // The state is the parameter tree as XML, tagged with a version number so
+    // that later versions can tell how to read it
+    auto state = apvts.copyState();
+    state.setProperty(Parameters::stateVersionProperty, Parameters::currentStateVersion, nullptr);
 
-    // Write the parameters to the memory block
-    stream.writeFloat(sliderValue);
-    stream.writeInt(levelMeterDecayId);
-    stream.writeInt(holdTimeId);
-    stream.writeBool(tickDisplayState);
-    stream.writeInt(averagerDurationId);
-    stream.writeInt(levelMeterDisplayID);
-    stream.writeInt(histogramDisplayID);
+    if (auto xml = state.createXml())
+        copyXmlToBinary(*xml, destData);
 }
 
 void MultiMeterAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
-    // Deserialize the state information from a memory block.
-    juce::MemoryInputStream stream(data, static_cast<size_t>(sizeInBytes), false);
+    if (auto xml = getXmlFromBinary(data, sizeInBytes))
+    {
+        if (xml->hasTagName(apvts.state.getType()))
+            apvts.replaceState(juce::ValueTree::fromXml(*xml));
 
-    // Read the parameters from the memory block and update the state
-    sliderValue = stream.readFloat();
-    levelMeterDecayId = stream.readInt();
-    holdTimeId = stream.readInt();
-    tickDisplayState = stream.readBool();
-    averagerDurationId = stream.readInt();
-    levelMeterDisplayID = stream.readInt();
-    histogramDisplayID = stream.readInt();
+        return;
+    }
+
+    // Sessions saved with version 1 hold a raw binary stream instead
+    Parameters::LegacyState legacyState;
+    if (Parameters::readLegacyState(data, sizeInBytes, legacyState))
+        applyLegacyState(legacyState);
 }
 
-//==============================================================================
-juce::AudioProcessorValueTreeState::ParameterLayout MultiMeterAudioProcessor::createParameterLayout()
+void MultiMeterAudioProcessor::applyLegacyState(const Parameters::LegacyState& state)
 {
-    // Create and return the parameter layout for the audio processor
-    juce::AudioProcessorValueTreeState::ParameterLayout layout;
-    layout.add(std::make_unique<juce::AudioParameterFloat>("Scale Knob",
-        "Scale Knob",
-        juce::NormalisableRange<float>(50.f, 200.f, 1.f, 0.1),
-        100.f));
+    auto set = [this](const juce::String& parameterID, float value)
+    {
+        if (auto* parameter = apvts.getParameter(parameterID))
+            parameter->setValueNotifyingHost(parameter->convertTo0to1(value));
+    };
 
-    return layout;
+    set(Parameters::ID::goniometerScale, state.goniometerScale);
+    set(Parameters::ID::decayRate, static_cast<float>(state.decayRate));
+    set(Parameters::ID::holdTime, static_cast<float>(state.holdTime));
+    set(Parameters::ID::averagerDuration, static_cast<float>(state.averagerDuration));
+    set(Parameters::ID::meterView, static_cast<float>(state.meterView));
+    set(Parameters::ID::histogramView, static_cast<float>(state.histogramView));
+    set(Parameters::ID::showTick, state.showTick ? 1.f : 0.f);
 }
 
 //==============================================================================
