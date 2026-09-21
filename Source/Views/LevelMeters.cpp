@@ -40,17 +40,21 @@ void LevelMeters::resized()
         readoutAreas[channel] = channelBars[channel].toNearestInt().withY(readoutRow.getY()).withHeight(readoutRow.getHeight()).expanded(1, 0);
 
     // Blue through the working range, yellow as the level nears full scale, and red above it
-    auto proportionOf = [](float decibels) { return (double)juce::jmap(decibels, minDb, maxDb, 0.f, 1.f); };
-
-    levelGradient = juce::ColourGradient(Theme::secondDeep, 0.f, (float)barsArea.getBottom(), Theme::over, 0.f, (float)barsArea.getY(), false);
-    levelGradient.addColour(proportionOf(-24.f), Theme::second);
-    levelGradient.addColour(proportionOf(-6.f), Theme::accent);
-    levelGradient.addColour(proportionOf(0.f), Theme::over);
-
-    // The loudness bars are in the yellow of the signal
-    loudnessGradient = juce::ColourGradient(Theme::accent.darker(0.75f), 0.f, (float)barsArea.getBottom(), Theme::accent, 0.f, (float)barsArea.getY(), false);
+    const juce::Point<float> foot(0.f, (float)barsArea.getBottom()), top(0.f, (float)barsArea.getY());
+    levelGradient = Theme::levelColours(minDb, maxDb, -6.f, 0.f, foot, top);
+    updateLoudnessGradient();
 
     staticLayer.invalidate();
+}
+
+void LevelMeters::updateLoudnessGradient()
+{
+    // The loudness bars turn yellow at the target, and red 6 LU above it, as the level bars do at full scale.
+    // Without a target they stay blue.
+    const juce::Point<float> foot(0.f, (float)barsArea.getBottom()), top(0.f, (float)barsArea.getY());
+    const bool hasTarget = shown.targetLufs < 0.f;
+    loudnessGradient = Theme::levelColours(minDb, maxDb, hasTarget ? shown.targetLufs : 100.f, hasTarget ? shown.targetLufs + 6.f : 200.f, foot, top);
+    gradientTargetLufs = shown.targetLufs;
 }
 
 void LevelMeters::mouseDown(const juce::MouseEvent&)
@@ -112,6 +116,9 @@ void LevelMeters::update(const Levels& levels, const Settings& newSettings, floa
 
     shown = levels;
 
+    if (!juce::exactlyEqual(shown.targetLufs, gradientTargetLufs))
+        updateLoudnessGradient();
+
     // The numbers change ten times a second, which is as fast as they can be read
     secondsSinceReadout += (double)elapsedSeconds;
     if (secondsSinceReadout >= Theme::readoutIntervalSeconds)
@@ -157,7 +164,7 @@ void LevelMeters::paint(juce::Graphics& g)
         g.fillRect(bar.withTop(y));
         g.setOpacity(1.f);
 
-        g.setColour(Theme::accent);
+        g.setColour(capColourAt(loudnessGradient, y));
         g.fillRect(bar.withTop(y).withHeight(Theme::barCapHeight));
     }
 
@@ -183,21 +190,14 @@ void LevelMeters::paintChannel(juce::Graphics& g, const Channel& channel, juce::
 {
     const float rmsY = settings.showRms ? yOf(channel.rms) : bar.getBottom();
 
-    // The color of the scale at a height, for the bright line at the top of a bar
-    auto capColourAt = [&](float y)
-    {
-        const double proportion = (levelGradient.point1.y - y) / (levelGradient.point1.y - levelGradient.point2.y);
-        return levelGradient.getColourAtPosition(juce::jlimit(0.0, 1.0, proportion)).brighter(0.25f);
-    };
-
     if (settings.showRms && channel.rms > minDb)
     {
         g.setGradientFill(levelGradient);
-        g.setOpacity(Theme::barBodyAlpha + 0.18f);
+        g.setOpacity(Theme::barBodyAlpha);
         g.fillRect(bar.withTop(rmsY));
         g.setOpacity(1.f);
 
-        g.setColour(capColourAt(rmsY));
+        g.setColour(capColourAt(levelGradient, rmsY));
         g.fillRect(bar.withTop(rmsY).withHeight(Theme::barCapHeight));
     }
 

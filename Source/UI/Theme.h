@@ -24,7 +24,7 @@ namespace Theme
 
     // Displays
     inline const juce::Colour displayTop { 0xff000000 };     // a display runs from black at the top
-    inline const juce::Colour displayBottom { 0xff0b0614 };  // to a deep purple at the bottom
+    inline const juce::Colour displayBottom { 0xff110f15 };  // to a dark, faintly purple grey at the bottom
     inline const juce::Colour display { 0xff05030a };        // one color for where a gradient cannot be used
     inline const juce::Colour track { 0xff17151c };          // the unlit part of a meter
     inline const juce::Colour grid { 0xff201f22 };
@@ -45,7 +45,12 @@ namespace Theme
 
     // Signal
     inline const juce::Colour accent { 0xffffc435 };   // yellow: the left or mid channel, and anything that is "the signal"
-    inline const juce::Colour second { 0xff3f9fdc };   // blue: the right or side channel
+    inline const juce::Colour second { 0xff4d92c6 };   // blue: the right or side channel. A steel blue, not a sky blue.
+
+    // The blue of a meter, measured from FabFilter's: deep at the foot of a bar, and lighter towards its top
+    inline const juce::Colour meterDeep { 0xff142f48 };
+    inline const juce::Colour meterMid { 0xff22648d };
+    inline const juce::Colour meterLight { 0xff6289a2 };
     inline const juce::Colour secondDeep { 0xff154767 }; // the deep blue of a knob's ring
     inline const juce::Colour held { 0xffffffff };     // peak holds and ticks
     inline const juce::Colour target { 0xff59fb18 };   // what to aim for
@@ -65,7 +70,7 @@ namespace Theme
     inline constexpr float curveBloomWidth = 5.5f;
 
     // A bar is the same: its body is held back, and the line at its top, which is the reading, is bright
-    inline constexpr float barBodyAlpha = 0.62f;
+    inline constexpr float barBodyAlpha = 0.9f;
     inline constexpr float barCapHeight = 2.f;
 
     // Measurements in pixels
@@ -109,6 +114,22 @@ namespace Theme
     // Small capitals with a little space between the letters, for the names of things
     inline juce::Font labelFont()   { return font(10.5f, true).withExtraKerningFactor(0.06f); }
     inline juce::Font controlFont() { return font(12.5f); }
+
+    // The colors of a level from the foot of a scale to its top: steel blue through the working range,
+    // lighter as it rises, yellow from yellowFromDb, and red from redFromDb. The level bars, the history of
+    // the levels and the loudness bars all use it, the last with the target in place of full scale.
+    inline juce::ColourGradient levelColours(float minDb, float maxDb, float yellowFromDb, float redFromDb,
+                                             juce::Point<float> foot, juce::Point<float> top)
+    {
+        auto proportionOf = [&](float decibels) { return (double)juce::jlimit(0.f, 1.f, juce::jmap(decibels, minDb, maxDb, 0.f, 1.f)); };
+
+        juce::ColourGradient gradient(meterDeep, foot, over, top, false);
+        gradient.addColour(proportionOf(yellowFromDb - 24.f), meterMid);
+        gradient.addColour(proportionOf(yellowFromDb - 5.f), meterLight);
+        gradient.addColour(proportionOf(yellowFromDb), accent);
+        gradient.addColour(proportionOf(redFromDb), over);
+        return gradient;
+    }
 
     inline int textWidth(const juce::Font& f, const juce::String& t)
     {

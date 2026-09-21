@@ -82,6 +82,17 @@ private:
 
     // The colors of a bar run up its height, so that a level always has the same color
     juce::ColourGradient levelGradient, loudnessGradient;
+    float gradientTargetLufs = 1.f;   // the target that the loudness gradient was made for
+
+    // Makes the gradient of the loudness bars again, for the target that is showing
+    void updateLoudnessGradient();
+
+    // The color of a scale at a height, a little brighter, for the line at the top of a bar
+    static juce::Colour capColourAt(const juce::ColourGradient& gradient, float y)
+    {
+        const double proportion = (gradient.point1.y - y) / (gradient.point1.y - gradient.point2.y);
+        return gradient.getColourAtPosition(juce::jlimit(0.0, 1.0, proportion)).brighter(0.3f);
+    }
     CachedLayer staticLayer;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LevelMeters)

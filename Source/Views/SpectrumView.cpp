@@ -102,13 +102,16 @@ void SpectrumView::paint(juce::Graphics& g)
 
             // The color is in the line. What is beneath it is only its light, which is brightest under the
             // top of the curve and gone a little more than half way down the plot, so that the display stays
-            // dark. The second curve usually lies over the first, as left and right do, so its light is fainter,
-            // or the two would mix into a muddy color.
-            const auto area = makePath(shown[i], true);
-            const float top = area.getBounds().getY();
-            g.setGradientFill(juce::ColourGradient(colours[i].withAlpha(index == 0 ? Theme::curveLightAlpha : 0.4f * Theme::curveLightAlpha), 0.f, top,
-                                                   colours[i].withAlpha(0.f), 0.f, top + Theme::curveLightReach * (float)plot.getHeight(), false));
-            g.fillPath(area);
+            // dark. Only the first curve has it: the second usually lies over the first, as left and right do,
+            // and a blue light under a yellow one makes an olive green of the two.
+            if (index == 0)
+            {
+                const auto area = makePath(shown[i], true);
+                const float top = area.getBounds().getY();
+                g.setGradientFill(juce::ColourGradient(colours[i].withAlpha(Theme::curveLightAlpha), 0.f, top,
+                                                       colours[i].withAlpha(0.f), 0.f, top + Theme::curveLightReach * (float)plot.getHeight(), false));
+                g.fillPath(area);
+            }
 
             // A wide, faint stroke under the line is its bloom
             const auto line = makePath(shown[i], false);

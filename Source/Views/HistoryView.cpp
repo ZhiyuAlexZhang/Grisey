@@ -11,13 +11,8 @@ void HistoryView::resized()
     // The same margins as the spectrogram, so that a moment is at the same place in both
     plot = getLocalBounds().withTrimmedLeft(34).withTrimmedRight(34).withTrimmedTop(8).withTrimmedBottom(20);
 
-    // The same colors as the level meters: blue through the working range, yellow near full scale, red above it
-    auto proportionOf = [](float decibels) { return (double)juce::jmap(decibels, minDb, maxDb, 0.f, 1.f); };
-
-    juce::ColourGradient gradient(Theme::secondDeep, 0.f, 0.f, Theme::over, 0.f, 1.f, false);
-    gradient.addColour(proportionOf(-24.f), Theme::second);
-    gradient.addColour(proportionOf(-6.f), Theme::accent);
-    gradient.addColour(proportionOf(0.f), Theme::over);
+    // The same colors as the level meters
+    const auto gradient = Theme::levelColours(minDb, maxDb, -6.f, 0.f, { 0.f, 0.f }, { 0.f, 1.f });
 
     // The background of each row is what Theme::fillDisplay() draws at its height
     const juce::ColourGradient background(Theme::displayTop, 0.f, 0.f, Theme::displayBottom, 0.f, 1.f, false);
