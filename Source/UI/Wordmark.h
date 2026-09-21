@@ -1,12 +1,29 @@
 #pragma once
 
 // The name of the plugin as an outline, so that it is drawn the same on every computer, whether or not
-// it has the typeface. Written by: GriseySnapshot docs/images/wordmark.svg wordmark "Snell Roundhand" Bold Source/UI/Wordmark.h
-// The outline is the data of an SVG path, 419.03 wide and 175.42 high, from the top left.
+// it has the typeface, with the measures of its finish. Written by:
+//   GriseySnapshot docs/images/wordmark.svg wordmark "Snell Roundhand" Bold Source/UI/Wordmark.h
 namespace Wordmark
 {
+    // The outline is the data of an SVG path of this size, from the top left
     inline constexpr float width = 419.03f;
     inline constexpr float height = 175.42f;
+
+    // The height of the name in the header, and the measures of the flourish on either side of it, in points
+    inline constexpr float heightInHeader = 32.0f;
+    inline constexpr float ruleGap = 9.0f;
+    inline constexpr float ruleLength = 24.0f;
+    inline constexpr float diamondSize = 2.2f;
+
+    // The maker's name, and the room for it beneath the line that the letters stand on, clear of the tail of
+    // the last letter, as proportions of the outline's width and height
+    inline constexpr const char* maker = "YULANIA";
+    inline constexpr float makerFontHeight = 6.6f;
+    inline constexpr float makerKerning = 0.26f;
+    inline constexpr float pocketLeft = 0.03f;
+    inline constexpr float pocketTop = 0.79f;
+    inline constexpr float pocketWidth = 0.58f;
+    inline constexpr float pocketHeight = 0.23f;
 
     inline constexpr const char* outline =
         "M73.59 1.27Q69.15 2.38 66.3 6.34Q63.44 10.31 63.44 14.91Q63.44 16.97 63.68 19.11Q63.92 21.25 64.71 23Q68.99 20"

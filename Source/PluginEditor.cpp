@@ -137,8 +137,7 @@ namespace
 {
     // The widths of the raised tab that holds the name, and of the shoulders on either side of it
     constexpr float nameTabStart = 6.f;
-    constexpr float nameTabWidth = 132.f;
-    constexpr float wordmarkHeight = 31.f;
+    constexpr float nameTabWidth = 188.f;
     constexpr float shoulderWidth = 46.f;
 
     // The thickness of the raised edge that runs along the rest of the chrome
@@ -186,15 +185,57 @@ void GriseyAudioProcessorEditor::paintHeader(juce::Graphics& g, juce::Rectangle<
     g.setColour(Theme::edge);
     g.fillRect(bounds.withTop(bounds.getBottom() - 1.f));
 
-    // The name of the plugin is an outline, not text, so that it is drawn the same on a computer that
-    // does not have its typeface. It is a silver that is a little lighter at the top than at the bottom.
-    const auto nameArea = juce::Rectangle<float>(tabLeft, bounds.getY(), nameTabWidth, bounds.getHeight()).reduced(4.f, 0.f)
-                              .withSizeKeepingCentre(nameTabWidth - 8.f, wordmarkHeight).translated(0.f, 0.5f);
-    const auto placement = juce::RectanglePlacement(juce::RectanglePlacement::centred)
-                               .getTransformToFit({ 0.f, 0.f, Wordmark::width, Wordmark::height }, nameArea);
+    paintName(g, juce::Rectangle<float>(tabLeft, bounds.getY(), nameTabWidth, bounds.getHeight()));
+}
 
-    g.setGradientFill(juce::ColourGradient(Theme::wordmarkTop, 0.f, nameArea.getY(), Theme::wordmarkBottom, 0.f, nameArea.getBottom(), false));
+void GriseyAudioProcessorEditor::paintName(juce::Graphics& g, juce::Rectangle<float> tab)
+{
+    // The name of the plugin is an outline, not text, so that it is drawn the same on a computer that does
+    // not have its typeface. It is finished as a name is on the fallboard of a piano: in silver, a little
+    // lighter at the top than at the bottom, set into the surface, with a flourish on either side of it and
+    // the maker's name beneath it.
+    const float wordWidth = Wordmark::width * Wordmark::heightInHeader / Wordmark::height;
+    const auto word = tab.withSizeKeepingCentre(wordWidth, Wordmark::heightInHeader).translated(0.f, 0.5f);
+    const auto placement = juce::RectanglePlacement(juce::RectanglePlacement::stretchToFit)
+                               .getTransformToFit({ 0.f, 0.f, Wordmark::width, Wordmark::height }, word);
+
+    // A hairline that fades outward, with a diamond at its inner end, level with the middle of the outline
+    const float ruleY = word.getCentreY();
+
+    for (int side : { -1, 1 })
+    {
+        const float inner = side < 0 ? word.getX() - Wordmark::ruleGap : word.getRight() + Wordmark::ruleGap;
+        const float outer = inner + (float)side * Wordmark::ruleLength;
+
+        g.setGradientFill(juce::ColourGradient(Theme::wordmarkBottom.withAlpha(0.7f), inner, ruleY, Theme::wordmarkBottom.withAlpha(0.f), outer, ruleY, false));
+        g.fillRect(juce::Rectangle<float>(juce::jmin(inner, outer), ruleY - 0.4f, Wordmark::ruleLength, 0.8f));
+
+        juce::Path diamond;
+        const float d = Wordmark::diamondSize;
+        diamond.addQuadrilateral(inner, ruleY - d, inner + d, ruleY, inner, ruleY + d, inner - d, ruleY);
+        g.setColour(Theme::wordmarkBottom.withAlpha(0.85f));
+        g.fillPath(diamond);
+    }
+
+    // What sets the name into the surface: a soft light around it, and a shadow beneath it. The width of
+    // a stroke is measured after the transform.
+    g.setColour(Theme::wordmarkTop.withAlpha(0.05f));
+    g.strokePath(wordmarkOutline, juce::PathStrokeType(7.f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded), placement);
+    g.setColour(Theme::wordmarkTop.withAlpha(0.07f));
+    g.strokePath(wordmarkOutline, juce::PathStrokeType(3.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded), placement);
+    g.setColour(juce::Colours::black.withAlpha(0.65f));
+    g.fillPath(wordmarkOutline, placement.translated(0.f, 1.1f));
+
+    g.setGradientFill(juce::ColourGradient(Theme::wordmarkTop, 0.f, word.getY(), Theme::wordmarkBottom, 0.f, word.getBottom(), false));
     g.fillPath(wordmarkOutline, placement);
+
+    // The maker's name is in the room beneath the line that the letters stand on, which the tail of the y
+    // leaves free on the left
+    const auto pocket = juce::Rectangle<float>(word.getX() + Wordmark::pocketLeft * wordWidth, word.getY() + Wordmark::pocketTop * Wordmark::heightInHeader,
+                                               Wordmark::pocketWidth * wordWidth, Wordmark::pocketHeight * Wordmark::heightInHeader);
+    g.setFont(Theme::font(Wordmark::makerFontHeight, true).withExtraKerningFactor(Wordmark::makerKerning));
+    g.setColour(Theme::wordmarkBottom.withAlpha(0.95f));
+    g.drawText(Wordmark::maker, pocket.expanded(6.f, 2.f), juce::Justification::centred);
 }
 
 void GriseyAudioProcessorEditor::paintBottomBar(juce::Graphics& g, juce::Rectangle<int> area)

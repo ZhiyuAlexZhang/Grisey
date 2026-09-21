@@ -96,32 +96,13 @@ namespace
 
 namespace
 {
-    // Writes the name as outlines, so that it looks the same on a computer that does not have the typeface:
-    // an SVG for the README, and the same outline as a header for the plugin.
-    //   GriseySnapshot docs/images/wordmark.svg wordmark "Snell Roundhand" Bold Source/UI/Wordmark.h
-    bool writeWordmark(const juce::File& svgFile, const juce::String& typeface, const juce::String& style, const juce::File& headerFile)
+    // The data of an SVG path for a JUCE path
+    juce::String toSvgData(const juce::Path& path)
     {
-        if (! juce::Font::findAllTypefaceNames().contains(typeface))
-        {
-            std::cout << "This computer does not have " << typeface << std::endl;
-            return false;
-        }
-
-        // Large, so that two decimal places are plenty
-        const juce::Font font(juce::FontOptions(typeface, 200.f, juce::Font::plain).withStyle(style));
-        juce::GlyphArrangement glyphs;
-        glyphs.addLineOfText(font, "Grisey", 0.f, 0.f);
-
-        juce::Path outline;
-        glyphs.createPath(outline);
-
-        const auto bounds = outline.getBounds();
-        outline.applyTransform(juce::AffineTransform::translation(-bounds.getX(), -bounds.getY()));
-
         auto number = [](float value) { return juce::String(value, 2).trimCharactersAtEnd("0").trimCharactersAtEnd("."); };
 
         juce::String data;
-        juce::Path::Iterator segment(outline);
+        juce::Path::Iterator segment(path);
         while (segment.next())
         {
             switch (segment.elementType)
@@ -135,39 +116,93 @@ namespace
             }
         }
 
-        const auto width = number(bounds.getWidth()), height = number(bounds.getHeight());
+        return data;
+    }
 
-        juce::String svg;
-        // The name is silver, so it stands on a dark plate, or it could not be seen on a white page
-        const float margin = 70.f;
-        const auto plateWidth = number(bounds.getWidth() + 2.f * margin), plateHeight = number(bounds.getHeight() + 2.f * margin);
+    // Writes the name as outlines, so that it looks the same on a computer that does not have the typeface:
+    // the outline and the measures of its finish as a header for the plugin, and the whole of it, finished
+    // as the plugin draws it, as an SVG for the README.
+    //   GriseySnapshot docs/images/wordmark.svg wordmark "Snell Roundhand" Bold Source/UI/Wordmark.h
+    bool writeWordmark(const juce::File& svgFile, const juce::String& typeface, const juce::String& style, const juce::File& headerFile)
+    {
+        if (! juce::Font::findAllTypefaceNames().contains(typeface))
+        {
+            std::cout << "This computer does not have " << typeface << std::endl;
+            return false;
+        }
 
-        svg << "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 " << plateWidth << " " << plateHeight << "\" role=\"img\" aria-label=\"Grisey\">\n"
-            << "  <defs>\n"
-            << "    <linearGradient id=\"silver\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">\n"
-            << "      <stop offset=\"0\" stop-color=\"#fbf3f3\"/>\n"
-            << "      <stop offset=\"1\" stop-color=\"#c9bdc0\"/>\n"
-            << "    </linearGradient>\n"
-            << "    <linearGradient id=\"plate\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">\n"
-            << "      <stop offset=\"0\" stop-color=\"#201d22\"/>\n"
-            << "      <stop offset=\"1\" stop-color=\"#353238\"/>\n"
-            << "    </linearGradient>\n"
-            << "  </defs>\n"
-            << "  <rect width=\"" << plateWidth << "\" height=\"" << plateHeight << "\" rx=\"44\" fill=\"url(#plate)\"/>\n"
-            << "  <path transform=\"translate(" << number(margin) << " " << number(margin) << ")\" fill=\"url(#silver)\" d=\"" << data << "\"/>\n"
-            << "</svg>\n";
+        // The finish, in points at the height that the name has in the header
+        const juce::String maker("YULANIA");
+        const float heightInHeader = 32.f, ruleGap = 9.f, ruleLength = 24.f, diamondSize = 2.2f;
+        const float makerFontHeight = 6.6f, makerKerning = 0.26f;
 
-        svgFile.replaceWithText(svg, false, false, "\n");
+        // Large, so that two decimal places are plenty
+        const juce::Font font(juce::FontOptions(typeface, 200.f, juce::Font::plain).withStyle(style));
+        juce::GlyphArrangement glyphs;
+        glyphs.addLineOfText(font, "Grisey", 0.f, 0.f);
 
+        juce::Path outline;
+        glyphs.createPath(outline);
+        outline.applyTransform(juce::AffineTransform::translation(-outline.getBounds().getX(), -outline.getBounds().getY()));
+
+        const float width = outline.getBounds().getWidth(), height = outline.getBounds().getHeight();
+
+        // The maker's name goes in the room beneath the line that the letters stand on. That line is the lowest
+        // point of the first half of the name, and the room ends where a tail, like that of the y, comes below it.
+        float baseline = 0.f, tailLeft = width;
+        {
+            juce::PathFlatteningIterator point(outline);
+            std::vector<juce::Point<float>> points;
+            while (point.next())
+                points.push_back({ point.x2, point.y2 });
+
+            for (const auto& p : points)
+                if (p.x < 0.5f * width)
+                    baseline = juce::jmax(baseline, p.y);
+
+            for (const auto& p : points)
+                if (p.y > baseline + 0.05f * height)
+                    tailLeft = juce::jmin(tailLeft, p.x);
+        }
+
+        const float pocketLeft = 0.03f, pocketTop = baseline / height + 0.06f;
+        const float pocketWidth = tailLeft / width - 0.05f, pocketHeight = 1.02f - pocketTop;
+
+        auto number = [](float value) { return juce::String(value, 2).trimCharactersAtEnd("0").trimCharactersAtEnd("."); };
+        const auto data = toSvgData(outline);
+
+        //==============================================================================
         // A string literal has a limit in some compilers, so the outline is written as many short ones
+        // A number as C++ writes a float: with a decimal point, and an f
+        auto literal = [&](float value)
+        {
+            const auto text = number(value);
+            return (text.containsChar('.') ? text : text + ".0") + "f";
+        };
+
         juce::String header;
         header << "#pragma once\n\n"
                << "// The name of the plugin as an outline, so that it is drawn the same on every computer, whether or not\n"
-               << "// it has the typeface. Written by: GriseySnapshot docs/images/wordmark.svg wordmark \"" << typeface << "\" " << style << " Source/UI/Wordmark.h\n"
-               << "// The outline is the data of an SVG path, " << width << " wide and " << height << " high, from the top left.\n"
+               << "// it has the typeface, with the measures of its finish. Written by:\n"
+               << "//   GriseySnapshot docs/images/wordmark.svg wordmark \"" << typeface << "\" " << style << " Source/UI/Wordmark.h\n"
                << "namespace Wordmark\n{\n"
-               << "    inline constexpr float width = " << width << "f;\n"
-               << "    inline constexpr float height = " << height << "f;\n\n"
+               << "    // The outline is the data of an SVG path of this size, from the top left\n"
+               << "    inline constexpr float width = " << literal(width) << ";\n"
+               << "    inline constexpr float height = " << literal(height) << ";\n\n"
+               << "    // The height of the name in the header, and the measures of the flourish on either side of it, in points\n"
+               << "    inline constexpr float heightInHeader = " << literal(heightInHeader) << ";\n"
+               << "    inline constexpr float ruleGap = " << literal(ruleGap) << ";\n"
+               << "    inline constexpr float ruleLength = " << literal(ruleLength) << ";\n"
+               << "    inline constexpr float diamondSize = " << literal(diamondSize) << ";\n\n"
+               << "    // The maker's name, and the room for it beneath the line that the letters stand on, clear of the tail of\n"
+               << "    // the last letter, as proportions of the outline's width and height\n"
+               << "    inline constexpr const char* maker = \"" << maker << "\";\n"
+               << "    inline constexpr float makerFontHeight = " << literal(makerFontHeight) << ";\n"
+               << "    inline constexpr float makerKerning = " << literal(makerKerning) << ";\n"
+               << "    inline constexpr float pocketLeft = " << literal(pocketLeft) << ";\n"
+               << "    inline constexpr float pocketTop = " << literal(pocketTop) << ";\n"
+               << "    inline constexpr float pocketWidth = " << literal(pocketWidth) << ";\n"
+               << "    inline constexpr float pocketHeight = " << literal(pocketHeight) << ";\n\n"
                << "    inline constexpr const char* outline =\n";
 
         for (int start = 0; start < data.length(); start += 110)
@@ -176,7 +211,66 @@ namespace
         header = header.dropLastCharacters(1) + ";\n}\n";
         headerFile.replaceWithText(header, false, false, "\n");
 
-        std::cout << "Saved " << svgFile.getFullPathName() << " and " << headerFile.getFullPathName() << " (" << data.length() << " characters of outline)" << std::endl;
+        //==============================================================================
+        // The SVG is in the units of the outline, so a point of the header is this many of them
+        const float unit = height / heightInHeader;
+        const float marginX = (ruleGap + ruleLength) * unit + 60.f, marginY = 60.f;
+        const float plateWidth = width + 2.f * marginX, plateHeight = height + 2.f * marginY;
+        const float ruleY = marginY + 0.5f * height;
+
+        // The maker's name as an outline too, in the middle of its room
+        juce::GlyphArrangement makerGlyphs;
+        makerGlyphs.addLineOfText(Theme::font(makerFontHeight * unit, true).withExtraKerningFactor(makerKerning), maker, 0.f, 0.f);
+        juce::Path makerOutline;
+        makerGlyphs.createPath(makerOutline);
+
+        const juce::Rectangle<float> pocket(marginX + pocketLeft * width, marginY + pocketTop * height, pocketWidth * width, pocketHeight * height);
+        const auto makerBounds = makerOutline.getBounds();
+        makerOutline.applyTransform(juce::AffineTransform::translation(pocket.getCentreX() - makerBounds.getCentreX(), pocket.getCentreY() - makerBounds.getCentreY()));
+
+        const auto place = "translate(" + number(marginX) + " " + number(marginY) + ")";
+
+        juce::String svg;
+        svg << "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 " << number(plateWidth) << " " << number(plateHeight) << "\" role=\"img\" aria-label=\"Grisey, by Yulania\">\n"
+            << "  <defs>\n"
+            << "    <linearGradient id=\"silver\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#fbf3f3\"/><stop offset=\"1\" stop-color=\"#c9bdc0\"/></linearGradient>\n"
+            << "    <linearGradient id=\"plate\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#201d22\"/><stop offset=\"1\" stop-color=\"#353238\"/></linearGradient>\n";
+
+        for (int side : { -1, 1 })
+        {
+            const float inner = side < 0 ? marginX - ruleGap * unit : marginX + width + ruleGap * unit;
+            const float outer = inner + (float) side * ruleLength * unit;
+            svg << "    <linearGradient id=\"rule" << (side < 0 ? "Left" : "Right") << "\" gradientUnits=\"userSpaceOnUse\" x1=\"" << number(inner) << "\" y1=\"0\" x2=\"" << number(outer) << "\" y2=\"0\">"
+                << "<stop offset=\"0\" stop-color=\"#c9bdc0\" stop-opacity=\"0.7\"/><stop offset=\"1\" stop-color=\"#c9bdc0\" stop-opacity=\"0\"/></linearGradient>\n";
+        }
+
+        svg << "    <filter id=\"glow\" x=\"-10%\" y=\"-30%\" width=\"120%\" height=\"160%\"><feGaussianBlur stdDeviation=\"" << number(2.2f * unit) << "\"/></filter>\n"
+            << "  </defs>\n"
+            << "  <rect width=\"" << number(plateWidth) << "\" height=\"" << number(plateHeight) << "\" rx=\"44\" fill=\"url(#plate)\"/>\n";
+
+        for (int side : { -1, 1 })
+        {
+            const float inner = side < 0 ? marginX - ruleGap * unit : marginX + width + ruleGap * unit;
+            const float outer = inner + (float) side * ruleLength * unit;
+            const float d = diamondSize * unit;
+            svg << "  <rect x=\"" << number(juce::jmin(inner, outer)) << "\" y=\"" << number(ruleY - 0.4f * unit) << "\" width=\"" << number(ruleLength * unit) << "\" height=\"" << number(0.8f * unit)
+                << "\" fill=\"url(#rule" << (side < 0 ? "Left" : "Right") << ")\"/>\n"
+                << "  <polygon points=\"" << number(inner) << "," << number(ruleY - d) << " " << number(inner + d) << "," << number(ruleY) << " " << number(inner) << "," << number(ruleY + d) << " "
+                << number(inner - d) << "," << number(ruleY) << "\" fill=\"#c9bdc0\" fill-opacity=\"0.85\"/>\n";
+        }
+
+        // The soft light around the name is a blurred copy of it, which an SVG can have. The plugin makes do with
+        // two wide, faint strokes, which look the same at the size of a header.
+        svg << "  <path transform=\"" << place << "\" fill=\"#fbf3f3\" fill-opacity=\"0.22\" filter=\"url(#glow)\" d=\"" << data << "\"/>\n"
+            << "  <path transform=\"translate(" << number(marginX) << " " << number(marginY + 1.1f * unit) << ")\" fill=\"#000\" fill-opacity=\"0.65\" d=\"" << data << "\"/>\n"
+            << "  <path transform=\"" << place << "\" fill=\"url(#silver)\" d=\"" << data << "\"/>\n"
+            << "  <path fill=\"#c9bdc0\" fill-opacity=\"0.95\" d=\"" << toSvgData(makerOutline) << "\"/>\n"
+            << "</svg>\n";
+
+        svgFile.replaceWithText(svg, false, false, "\n");
+
+        std::cout << "Saved " << svgFile.getFullPathName() << " and " << headerFile.getFullPathName() << std::endl
+                  << "The letters stand at " << number(baseline / height) << " of the height, and a tail comes below them from " << number(tailLeft / width) << " of the width" << std::endl;
         return true;
     }
 }

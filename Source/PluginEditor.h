@@ -58,6 +58,7 @@ private:
 
     // Draws the header and the bottom bar, whose raised parts meet the recessed ones in S-shaped shoulders
     void paintHeader(juce::Graphics& g, juce::Rectangle<int> area);
+    void paintName(juce::Graphics& g, juce::Rectangle<float> tab);
     void paintBottomBar(juce::Graphics& g, juce::Rectangle<int> area);
 
     // Fills the menu of the settings that the meters of the side column share
