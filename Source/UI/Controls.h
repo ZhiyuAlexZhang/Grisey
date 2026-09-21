@@ -87,6 +87,9 @@ public:
     {
         juce::PopupMenu menu;
         addChoiceItems(menu, parameter);
+
+        // A menu does not take the look of the component that it belongs to, so it is given it
+        menu.setLookAndFeel(&getLookAndFeel());
         menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this).withPreferredPopupDirection(juce::PopupMenu::Options::PopupDirection::upwards));
     }
 
@@ -196,6 +199,7 @@ public:
         if (buildMenu)
             buildMenu(menu);
 
+        menu.setLookAndFeel(&getLookAndFeel());
         menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this).withPreferredPopupDirection(juce::PopupMenu::Options::PopupDirection::upwards));
     }
 

@@ -1,4 +1,5 @@
 #include "../Source/PluginProcessor.h"
+#include "../Source/UI/LookAndFeel.h"
 #include <thread>
 
 //==============================================================================
@@ -23,8 +24,76 @@
 // click=Reset@20 presses the button of that name 20 s in, which is how a button can be tried
 // without a hand on the mouse.
 //
+// A menu closes as soon as its application is not the one in front, so it cannot be opened for a
+// picture. "GriseySnapshot menu.png menu" draws a sample menu with the look and feel instead: a
+// section, a current choice, a submenu, a separator and an item that is switched off.
+//
 // audio=song.mp3 plays a file through the plugin instead of the test signal, in a loop, and
 // from=30 starts it 30 s in. The file is read with whatever formats the system offers.
+namespace
+{
+    // Draws the items of a sample menu one below the other, each at the size that the look and feel asks for
+    juce::Image drawSampleMenu()
+    {
+        struct Item
+        {
+            juce::String text;
+            bool isHeader = false, isSeparator = false, isActive = true, isHighlighted = false, isTicked = false, hasSubMenu = false;
+        };
+
+        const std::vector<Item> items {
+            { "Level meters", true },
+            { "Show", false, false, true, false, false, true },
+            { "Peak ticks", true },
+            { "Show ticks", false, false, true, false, true },
+            { "Hold for", false, false, true, true, false, true },
+            { "Then fall at", false, false, true, false, false, true },
+            { "Reset ticks" },
+            { {}, false, true },
+            { "Switched off", false, false, false },
+        };
+
+        GriseyLookAndFeel lookAndFeel;
+        const int border = lookAndFeel.getPopupMenuBorderSize();
+
+        std::vector<juce::Rectangle<int>> areas;
+        int width = 0, y = border;
+
+        for (const auto& item : items)
+        {
+            int itemWidth = 0, itemHeight = 0;
+            lookAndFeel.getIdealPopupMenuItemSize(item.text, item.isSeparator, 0, itemWidth, itemHeight);
+
+            // A header is given half as much height again, as PopupMenu does
+            if (item.isHeader)
+                itemHeight += itemHeight / 2;
+
+            areas.push_back({ border, y, itemWidth, itemHeight });
+            width = juce::jmax(width, itemWidth);
+            y += itemHeight;
+        }
+
+        juce::Image image(juce::Image::ARGB, 2 * (width + 2 * border), 2 * (y + border), true);
+        juce::Graphics g(image);
+        g.addTransform(juce::AffineTransform::scale(2.f));
+        lookAndFeel.drawPopupMenuBackground(g, width + 2 * border, y + border);
+
+        for (size_t i = 0; i < items.size(); ++i)
+        {
+            const auto& item = items[i];
+            const auto area = areas[i].withWidth(width);
+
+            if (item.isHeader)
+                lookAndFeel.drawPopupMenuSectionHeader(g, area, item.text);
+            else
+                lookAndFeel.drawPopupMenuItem(g, area, item.isSeparator, item.isActive, item.isHighlighted, item.isTicked,
+                                              item.hasSubMenu, item.text, {}, nullptr, nullptr);
+        }
+
+        return image;
+    }
+}
+
 int main(int argc, char* argv[])
 {
     if (argc < 2)
@@ -38,6 +107,17 @@ int main(int argc, char* argv[])
     const double seconds = argc > 3 ? juce::String(argv[3]).getDoubleValue() : 2.0;
 
     juce::ScopedJuceInitialiser_GUI juceInit;
+
+    if (argc > 2 && juce::String(argv[2]) == "menu")
+    {
+        output.deleteFile();
+        juce::FileOutputStream stream(output);
+        if (stream.openedOk())
+            juce::PNGImageFormat().writeImageToStream(drawSampleMenu(), stream);
+
+        std::cout << "Saved " << output.getFullPathName() << std::endl;
+        return 0;
+    }
 
     double sampleRate = 48000.0;
     constexpr int blockSize = 512;
