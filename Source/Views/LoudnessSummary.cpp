@@ -1,13 +1,10 @@
 #include "LoudnessSummary.h"
 
 //==============================================================================
-void LoudnessSummary::update(const LoudnessMeter::Readings& readings, float maxTruePeakDb, float targetLufs, float elapsedSeconds)
+void LoudnessSummary::update(const LoudnessMeter::Readings& readings, float maxTruePeakDb, float targetLufs, bool readoutDue)
 {
-    secondsSinceReadout += (double)elapsedSeconds;
-    if (secondsSinceReadout < Theme::readoutIntervalSeconds)
+    if (!readoutDue)
         return;
-
-    secondsSinceReadout = 0.0;
 
     const bool hasIntegrated = std::isfinite(readings.integrated);
     const auto newIntegrated = Theme::formatDb(readings.integrated, -200.f);

@@ -106,6 +106,10 @@ private:
     // Timing of the updates, in seconds
     double lastUpdateTime = -1.0;
     double lastAudioTime = 0.0;
+
+    // The numbers take new readings ten times a second, and all at the same moment, so that a
+    // reading that is shown in two places says the same in both
+    double secondsSinceReadout = 0.0;
     juce::uint64 lastTotalWritten = 0;
 
     // Declared last, so that the callbacks stop before anything that they use is destroyed

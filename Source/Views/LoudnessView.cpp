@@ -32,7 +32,7 @@ void LoudnessView::paint(juce::Graphics& g)
 }
 
 void LoudnessView::update(const LoudnessMeter::Readings& newReadings, float truePeakDb, float maxTruePeakDb,
-                          float targetLufs, int numNewSlots, float elapsedSeconds)
+                          float targetLufs, int numNewSlots, float elapsedSeconds, bool readoutDue)
 {
     readings = newReadings;
     maxTruePeak = maxTruePeakDb;
@@ -53,10 +53,10 @@ void LoudnessView::update(const LoudnessMeter::Readings& newReadings, float true
     for (int slot = 0; slot < numNewSlots; ++slot)
         history.push({ readings.shortTerm, readings.momentary });
 
-    secondsSinceRepaint += (double)elapsedSeconds;
-    if (secondsSinceRepaint >= Theme::readoutIntervalSeconds)
+    // The view is drawn again at every readout, which is as often as its numbers change
+    if (readoutDue)
     {
-        secondsSinceRepaint = 0.0;
+        shown = { readings, maxTruePeak, recentTruePeak };
         repaint();
     }
 }
@@ -84,9 +84,9 @@ float LoudnessView::getReferenceLufs() const
 
 void LoudnessView::paintReadouts(juce::Graphics& g, juce::Rectangle<int> area)
 {
-    const bool hasIntegrated = isLoudness(readings.integrated);
-    const bool hasShortTerm = isLoudness(readings.shortTerm);
-    const bool hasTruePeak = maxTruePeak > -150.f;
+    const bool hasIntegrated = isLoudness(shown.readings.integrated);
+    const bool hasShortTerm = isLoudness(shown.readings.shortTerm);
+    const bool hasTruePeak = shown.maxTruePeak > -150.f;
 
     // The integrated loudness is the reading that a delivery is judged by, so it is the largest
     auto top = area.removeFromTop(84);
@@ -96,7 +96,7 @@ void LoudnessView::paintReadouts(juce::Graphics& g, juce::Rectangle<int> area)
 
     g.setFont(Theme::font(48.f));
     g.setColour(Theme::accent);
-    g.drawText(format(readings.integrated, hasIntegrated), top.removeFromTop(50), juce::Justification::centredLeft);
+    g.drawText(format(shown.readings.integrated, hasIntegrated), top.removeFromTop(50), juce::Justification::centredLeft);
 
     g.setFont(Theme::labelFont());
     g.setColour(Theme::textDim);
@@ -107,7 +107,7 @@ void LoudnessView::paintReadouts(juce::Graphics& g, juce::Rectangle<int> area)
     {
         g.setFont(Theme::font(11.f));
         g.setColour(Theme::text);
-        g.drawText(Theme::formatDb(readings.integrated - target, -1000.f) + " LU to target", unitRow, juce::Justification::centredLeft);
+        g.drawText(Theme::formatDb(shown.readings.integrated - target, -1000.f) + " LU to target", unitRow, juce::Justification::centredLeft);
     }
 
     // The other readings share a table
@@ -120,13 +120,13 @@ void LoudnessView::paintReadouts(juce::Graphics& g, juce::Rectangle<int> area)
     };
 
     const Row rows[] {
-        { "SHORT TERM", format(readings.shortTerm, hasShortTerm), "LUFS", false },
-        { "MOMENTARY", format(readings.momentary, isLoudness(readings.momentary)), "LUFS", false },
-        { "RANGE", format(readings.range, isLoudness(readings.rangeLow)), "LU", false },
+        { "SHORT TERM", format(shown.readings.shortTerm, hasShortTerm), "LUFS", false },
+        { "MOMENTARY", format(shown.readings.momentary, isLoudness(shown.readings.momentary)), "LUFS", false },
+        { "RANGE", format(shown.readings.range, isLoudness(shown.readings.rangeLow)), "LU", false },
         // A true peak keeps its sign, because whether it is over or under full scale is the point of it
-        { "TRUE PEAK", Theme::formatDb(hasTruePeak ? maxTruePeak : -2000.f, -1000.f), "dBTP", hasTruePeak && maxTruePeak > truePeakLimitDb },
-        { "PLR", format(maxTruePeak - readings.integrated, hasTruePeak && hasIntegrated), "LU", false },
-        { "PSR", format(recentTruePeak - readings.shortTerm, recentTruePeak > -150.f && hasShortTerm), "LU", false },
+        { "TRUE PEAK", Theme::formatDb(hasTruePeak ? shown.maxTruePeak : -2000.f, -1000.f), "dBTP", hasTruePeak && shown.maxTruePeak > truePeakLimitDb },
+        { "PLR", format(shown.maxTruePeak - shown.readings.integrated, hasTruePeak && hasIntegrated), "LU", false },
+        { "PSR", format(shown.recentTruePeak - shown.readings.shortTerm, shown.recentTruePeak > -150.f && hasShortTerm), "LU", false },
     };
 
     area.removeFromTop(10);

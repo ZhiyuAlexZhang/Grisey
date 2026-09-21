@@ -29,8 +29,10 @@ public:
     //  - maxTruePeakDb: the higher channel's true peak since the last reset
     //  - targetLufs:    the loudness to aim for, or 0 for none
     //  - numNewSlots:   how many slots of the timeline have been completed since the last call
+    //  - readoutDue:    whether the numbers are to take the new readings, which the editor decides
+    //                   for every number at once
     void update(const LoudnessMeter::Readings& readings, float truePeakDb, float maxTruePeakDb,
-                float targetLufs, int numNewSlots, float elapsedSeconds);
+                float targetLufs, int numNewSlots, float elapsedSeconds, bool readoutDue);
 
     // Forgets the history, for when the loudness meter is reset
     void clearHistory();
@@ -55,6 +57,17 @@ private:
     float maxTruePeak = -200.f;
     float target = 0.f;
 
+    // What the numbers say: the readings as they were at the last readout. The side column shows
+    // some of the same readings, and takes them at the same moments, so the two always agree.
+    struct Readout
+    {
+        LoudnessMeter::Readings readings;
+        float maxTruePeak = -200.f;
+        float recentTruePeak = -200.f;
+    };
+
+    Readout shown;
+
     // The peak to short-term loudness ratio needs the true peak of the same 3 s as the short-term loudness.
     // The peaks are kept as the maximum of each 100 ms, so the 3 s hold however often the editor updates.
     static constexpr double truePeakSlotSeconds = 0.1;
@@ -65,9 +78,6 @@ private:
 
     Timeline::History<HistoryPoint> history;
     float spanSeconds = 30.f;
-
-    // The view is drawn again ten times a second, which is how often its readings change
-    double secondsSinceRepaint = 0.0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LoudnessView)
 };

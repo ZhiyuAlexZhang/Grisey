@@ -326,7 +326,13 @@ void GriseyAudioProcessorEditor::updateMeters(float elapsedSeconds)
 
     const float truePeakDb = audioRunning ? toDecibels(juce::jmax(truePeak.peak[0], truePeak.peak[1])) : -200.f;
     const float maxTruePeakDb = toDecibels(juce::jmax(truePeak.maxPeak[0], truePeak.maxPeak[1]));
-    loudnessSummary.update(loudness, maxTruePeakDb, target, elapsedSeconds);
+
+    secondsSinceReadout += (double)elapsedSeconds;
+    const bool readoutDue = secondsSinceReadout >= Theme::readoutIntervalSeconds;
+    if (readoutDue)
+        secondsSinceReadout = 0.0;
+
+    loudnessSummary.update(loudness, maxTruePeakDb, target, readoutDue);
 
     // The spectrogram, the history and the loudness share one timeline. They all record in every
     // update, whichever view is showing, so that the same moment is in the same place in all of them.
@@ -338,7 +344,7 @@ void GriseyAudioProcessorEditor::updateMeters(float elapsedSeconds)
     historyView.setSpan(timeSpan);
     spectrogramView.setSpan(timeSpan);
 
-    loudnessView.update(loudness, truePeakDb, maxTruePeakDb, target, numNewSlots, elapsedSeconds);
+    loudnessView.update(loudness, truePeakDb, maxTruePeakDb, target, numNewSlots, elapsedSeconds, readoutDue);
     historyView.record(numNewSlots, juce::jmax(levels.peakDb[0], levels.peakDb[1]), juce::jmax(levels.rmsDb[0], levels.rmsDb[1]));
 
     // Only the visible view needs the samples themselves

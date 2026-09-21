@@ -17,14 +17,14 @@ public:
 
     void paint(juce::Graphics& g) override;
 
-    // Shows new readings, called by the editor once per frame. The numbers are only drawn
-    // again when what they say has changed. targetLufs is 0 for no target.
-    void update(const LoudnessMeter::Readings& readings, float maxTruePeakDb, float targetLufs, float elapsedSeconds);
+    // Shows new readings, called by the editor once per frame. The numbers only take the new
+    // readings when a readout is due, which the editor decides for every number at once, and
+    // are only drawn again when what they say has changed. targetLufs is 0 for no target.
+    void update(const LoudnessMeter::Readings& readings, float maxTruePeakDb, float targetLufs, bool readoutDue);
 
 private:
     juce::String integrated, difference, shortTerm, range, truePeak;
     bool truePeakIsOver = false;
-    double secondsSinceReadout = 0.0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LoudnessSummary)
 };
