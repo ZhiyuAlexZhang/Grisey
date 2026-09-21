@@ -61,7 +61,7 @@ private:
     // The colors of a column from the top down: within the RMS shape, within the peak shape, and outside
     // both, where it is the background of the display, which is not the same color all the way down.
     // The peak shape is faint behind the RMS shape, and takes the solid colors when it is on its own.
-    std::vector<juce::Colour> rmsColours, peakColours, backgroundColours;
+    std::vector<juce::Colour> rmsColours, peakColours, edgeColours, backgroundColours;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HistoryView)
 };

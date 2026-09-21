@@ -145,12 +145,21 @@ void LevelMeters::paint(juce::Graphics& g)
         g.drawText(readouts[i], readoutAreas[i], juce::Justification::centred);
     }
 
-    // The loudness bars
-    g.setGradientFill(loudnessGradient);
-    if (shown.momentaryLufs > minDb)
-        g.fillRect(momentaryBar.withTop(yOf(shown.momentaryLufs)));
-    if (shown.shortTermLufs > minDb)
-        g.fillRect(shortTermBar.withTop(yOf(shown.shortTermLufs)));
+    // The loudness bars: a body that is held back, under a bright line at the reading
+    for (const auto& [bar, lufs] : { std::pair { momentaryBar, shown.momentaryLufs }, std::pair { shortTermBar, shown.shortTermLufs } })
+    {
+        if (lufs <= minDb)
+            continue;
+
+        const float y = yOf(lufs);
+        g.setGradientFill(loudnessGradient);
+        g.setOpacity(Theme::barBodyAlpha);
+        g.fillRect(bar.withTop(y));
+        g.setOpacity(1.f);
+
+        g.setColour(Theme::accent);
+        g.fillRect(bar.withTop(y).withHeight(Theme::barCapHeight));
+    }
 
     const auto loudnessSpan = momentaryBar.getUnion(shortTermBar);
 
@@ -174,10 +183,22 @@ void LevelMeters::paintChannel(juce::Graphics& g, const Channel& channel, juce::
 {
     const float rmsY = settings.showRms ? yOf(channel.rms) : bar.getBottom();
 
+    // The color of the scale at a height, for the bright line at the top of a bar
+    auto capColourAt = [&](float y)
+    {
+        const double proportion = (levelGradient.point1.y - y) / (levelGradient.point1.y - levelGradient.point2.y);
+        return levelGradient.getColourAtPosition(juce::jlimit(0.0, 1.0, proportion)).brighter(0.25f);
+    };
+
     if (settings.showRms && channel.rms > minDb)
     {
         g.setGradientFill(levelGradient);
+        g.setOpacity(Theme::barBodyAlpha + 0.18f);
         g.fillRect(bar.withTop(rmsY));
+        g.setOpacity(1.f);
+
+        g.setColour(capColourAt(rmsY));
+        g.fillRect(bar.withTop(rmsY).withHeight(Theme::barCapHeight));
     }
 
     if (settings.showPeak && channel.peak > minDb)

@@ -54,9 +54,19 @@ namespace Theme
 
     // How strongly a curve is filled beneath its line. The second curve usually lies over the first,
     // as left and right do, so its fill is faint, or the two would mix into a muddy color.
-    inline constexpr float accentFillAlpha = 0.20f;
-    inline constexpr float secondFillAlpha = 0.07f;
     inline constexpr float curveThickness = 2.f;
+
+    // A curve carries its color in its line. Beneath it there is only its light: a fill that is this strong
+    // under the top of the curve and has faded out this far down the plot, and a wide, faint stroke for a bloom.
+    // Large areas of flat color make a display look heavy, which is why nothing is filled flat.
+    inline constexpr float curveLightAlpha = 0.26f;
+    inline constexpr float curveLightReach = 0.62f;
+    inline constexpr float curveBloomAlpha = 0.13f;
+    inline constexpr float curveBloomWidth = 5.5f;
+
+    // A bar is the same: its body is held back, and the line at its top, which is the reading, is bright
+    inline constexpr float barBodyAlpha = 0.62f;
+    inline constexpr float barCapHeight = 2.f;
 
     // Measurements in pixels
     inline constexpr int headerHeight = 38;

@@ -210,12 +210,14 @@ void LoudnessView::paintHistory(juce::Graphics& g, juce::Rectangle<int> area)
 
         if (shortTermStarted)
         {
-            // A flat, translucent fill beneath a solid line, as in the spectrum
+            // The light of the line beneath it, which fades out on the way down, as in the spectrum
             auto outline = shortTermPath;
             shortTermPath.lineTo(lastX, plot.getBottom());
             shortTermPath.closeSubPath();
 
-            g.setColour(Theme::accent.withAlpha(Theme::accentFillAlpha));
+            const float top = outline.getBounds().getY();
+            g.setGradientFill(juce::ColourGradient(Theme::accent.withAlpha(Theme::curveLightAlpha), 0.f, top,
+                                                   Theme::accent.withAlpha(0.f), 0.f, top + Theme::curveLightReach * plot.getHeight(), false));
             g.fillPath(shortTermPath);
 
             // The outline starts at the bottom of the plot, so its first segment is left out
@@ -231,6 +233,9 @@ void LoudnessView::paintHistory(juce::Graphics& g, juce::Rectangle<int> area)
                     started = true;
                 }
             }
+
+            g.setColour(Theme::accent.withAlpha(Theme::curveBloomAlpha));
+            g.strokePath(line, juce::PathStrokeType(Theme::curveBloomWidth, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
             g.setColour(Theme::accent);
             g.strokePath(line, juce::PathStrokeType(Theme::curveThickness, juce::PathStrokeType::curved));

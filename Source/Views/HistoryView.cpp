@@ -25,6 +25,7 @@ void HistoryView::resized()
     const int height = juce::jmax(1, plot.getHeight());
     rmsColours.resize((size_t)height);
     peakColours.resize((size_t)height);
+    edgeColours.resize((size_t)height);
     backgroundColours.resize((size_t)height);
 
     for (int row = 0; row < height; ++row)
@@ -33,9 +34,14 @@ void HistoryView::resized()
         const auto behind = background.getColourAtPosition(juce::jlimit(0.0, 1.0, (y - 0.25 * getHeight()) / (0.75 * getHeight())));
         const auto colour = gradient.getColourAtPosition(1.0 - (double)row / (double)height);
 
+        // A shape is strongest at the top of the plot and fades on the way down, so that the bottom of the
+        // display stays dark, and its upper edge is a line of the full color
+        const float depth = (float)row / (float)height;
+
         backgroundColours[(size_t)row] = behind;
-        rmsColours[(size_t)row] = behind.interpolatedWith(colour, 0.85f);
-        peakColours[(size_t)row] = behind.interpolatedWith(colour, 0.3f);
+        rmsColours[(size_t)row] = behind.interpolatedWith(colour, juce::jmap(depth, 0.62f, 0.16f));
+        peakColours[(size_t)row] = behind.interpolatedWith(colour, juce::jmap(depth, 0.26f, 0.08f));
+        edgeColours[(size_t)row] = colour.brighter(0.15f);
     }
 
     rebuildImage();
@@ -84,6 +90,11 @@ void HistoryView::addColumn(const Levels& levels)
     image.addColumn([&](int row)
     {
         const auto index = (size_t)juce::jmin(row, lastRow);
+        // The upper edge of the shape in front is a line two rows high
+        const int edgeRow = hasRms ? rmsRow : peakRow;
+        if ((hasRms || hasPeak) && row >= edgeRow && row < edgeRow + 2)
+            return edgeColours[index];
+
         return hasRms && row >= rmsRow ? rmsColours[index]
              : hasPeak && row >= peakRow ? peakShape[index]
              : backgroundColours[index];

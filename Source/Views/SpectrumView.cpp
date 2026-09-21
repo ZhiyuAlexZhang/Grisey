@@ -100,15 +100,23 @@ void SpectrumView::paint(juce::Graphics& g)
                 }
             }
 
-            // A glow beneath the line, which fades out towards the bottom. The second curve usually
-            // lies over the first, as left and right do, so its glow is fainter, or the two would
-            // mix into a muddy color.
-            g.setGradientFill(juce::ColourGradient(colours[i].withAlpha(index == 0 ? 0.34f : 0.12f), 0.f, (float)plot.getY(),
-                                                   colours[i].withAlpha(0.f), 0.f, (float)plot.getBottom(), false));
-            g.fillPath(makePath(shown[i], true));
+            // The color is in the line. What is beneath it is only its light, which is brightest under the
+            // top of the curve and gone a little more than half way down the plot, so that the display stays
+            // dark. The second curve usually lies over the first, as left and right do, so its light is fainter,
+            // or the two would mix into a muddy color.
+            const auto area = makePath(shown[i], true);
+            const float top = area.getBounds().getY();
+            g.setGradientFill(juce::ColourGradient(colours[i].withAlpha(index == 0 ? Theme::curveLightAlpha : 0.4f * Theme::curveLightAlpha), 0.f, top,
+                                                   colours[i].withAlpha(0.f), 0.f, top + Theme::curveLightReach * (float)plot.getHeight(), false));
+            g.fillPath(area);
+
+            // A wide, faint stroke under the line is its bloom
+            const auto line = makePath(shown[i], false);
+            g.setColour(colours[i].withAlpha(index == 0 ? Theme::curveBloomAlpha : 0.6f * Theme::curveBloomAlpha));
+            g.strokePath(line, juce::PathStrokeType(Theme::curveBloomWidth, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
             g.setColour(colours[i]);
-            g.strokePath(makePath(shown[i], false), juce::PathStrokeType(1.5f, juce::PathStrokeType::curved));
+            g.strokePath(line, juce::PathStrokeType(1.5f, juce::PathStrokeType::curved));
 
             // The peak hold is a thin, paler line of the same color
             if (settings.peakHold && peakHolds[i].size() == shown[i].size())
