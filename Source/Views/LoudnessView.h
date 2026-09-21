@@ -6,19 +6,17 @@
 #include "Timeline.h"
 
 //==============================================================================
-// Shows the readings of the LoudnessMeter and the TruePeakDetector as numbers, beside a
-// history of the short-term and the momentary loudness. The readings themselves are made
-// on the audio thread, this component only displays them. The history is on the shared
-// timeline, so it records whether the view is showing or not.
+// Shows a history of the short-term and the momentary loudness, beneath the readings that
+// only this view has: the momentary loudness, the PLR and the PSR. The other readings are in
+// the side column, whichever view is showing, so they are not repeated here. The readings
+// themselves are made on the audio thread, this component only displays them. The history is
+// on the shared timeline, so it records whether the view is showing or not.
 class LoudnessView : public juce::Component
 {
 public:
     // The graph reaches from 27 LU below the target to 9 LU above it, like the EBU +9 scale
     static constexpr float rangeBelowTarget = 27.f;
     static constexpr float rangeAboveTarget = 9.f;
-
-    // Most platforms ask for true peaks no higher than this
-    static constexpr float truePeakLimitDb = -1.f;
 
     LoudnessView();
 
@@ -47,8 +45,11 @@ private:
         float momentary = LoudnessMeter::silence;
     };
 
-    void paintReadouts(juce::Graphics& g, juce::Rectangle<int> area);
+    void paintHeader(juce::Graphics& g, juce::Rectangle<int> area);
     void paintHistory(juce::Graphics& g, juce::Rectangle<int> area);
+
+    // The room to the right of the plot for the labels of its scale
+    static constexpr int scaleWidth = 34;
 
     // The loudness at the middle of the graph's scale
     float getReferenceLufs() const;
@@ -57,8 +58,9 @@ private:
     float maxTruePeak = -200.f;
     float target = 0.f;
 
-    // What the numbers say: the readings as they were at the last readout. The side column shows
-    // some of the same readings, and takes them at the same moments, so the two always agree.
+    // What the numbers say: the readings as they were at the last readout. The side column takes
+    // its readings at the same moments, so a PLR is always of the true peak and the integrated
+    // loudness that are showing there.
     struct Readout
     {
         LoudnessMeter::Readings readings;

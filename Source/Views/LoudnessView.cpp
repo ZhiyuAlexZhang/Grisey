@@ -26,8 +26,8 @@ void LoudnessView::paint(juce::Graphics& g)
     Theme::fillDisplay(g, getLocalBounds());
 
     auto area = getLocalBounds().reduced(18, 14);
-    paintReadouts(g, area.removeFromLeft(210));
-    area.removeFromLeft(18);
+    paintHeader(g, area.removeFromTop(18));
+    area.removeFromTop(8);
     paintHistory(g, area);
 }
 
@@ -82,72 +82,73 @@ float LoudnessView::getReferenceLufs() const
     return target < 0.f ? target : -23.f;
 }
 
-void LoudnessView::paintReadouts(juce::Graphics& g, juce::Rectangle<int> area)
+void LoudnessView::paintHeader(juce::Graphics& g, juce::Rectangle<int> area)
 {
+    // The header ends where the plot does, short of the labels of the scale
+    area.removeFromRight(scaleWidth);
+
+    const auto labelFont = Theme::labelFont();
+    const auto valueFont = Theme::font(14.f);
+
+    // The readings that only this view has, from the right. The integrated and the short-term loudness,
+    // the range and the true peak are in the side column, whichever view is showing, so they are not
+    // repeated here.
     const bool hasIntegrated = isLoudness(shown.readings.integrated);
     const bool hasShortTerm = isLoudness(shown.readings.shortTerm);
     const bool hasTruePeak = shown.maxTruePeak > -150.f;
 
-    // The integrated loudness is the reading that a delivery is judged by, so it is the largest
-    auto top = area.removeFromTop(84);
-    g.setFont(Theme::labelFont());
-    g.setColour(Theme::textDim);
-    g.drawText("INTEGRATED", top.removeFromTop(14), juce::Justification::centredLeft);
-
-    g.setFont(Theme::font(48.f));
-    g.setColour(Theme::accent);
-    g.drawText(format(shown.readings.integrated, hasIntegrated), top.removeFromTop(50), juce::Justification::centredLeft);
-
-    g.setFont(Theme::labelFont());
-    g.setColour(Theme::textDim);
-    auto unitRow = top;
-    g.drawText("LUFS", unitRow.removeFromLeft(36), juce::Justification::centredLeft);
-
-    if (hasIntegrated && target < 0.f)
-    {
-        g.setFont(Theme::font(11.f));
-        g.setColour(Theme::text);
-        g.drawText(Theme::formatDb(shown.readings.integrated - target, -1000.f) + " LU to target", unitRow, juce::Justification::centredLeft);
-    }
-
-    // The other readings share a table
-    struct Row
+    struct Readout
     {
         const char* name;
         juce::String value;
         const char* unit;
-        bool warn;
     };
 
-    const Row rows[] {
-        { "SHORT TERM", format(shown.readings.shortTerm, hasShortTerm), "LUFS", false },
-        { "MOMENTARY", format(shown.readings.momentary, isLoudness(shown.readings.momentary)), "LUFS", false },
-        { "RANGE", format(shown.readings.range, isLoudness(shown.readings.rangeLow)), "LU", false },
-        // A true peak keeps its sign, because whether it is over or under full scale is the point of it
-        { "TRUE PEAK", Theme::formatDb(hasTruePeak ? shown.maxTruePeak : -2000.f, -1000.f), "dBTP", hasTruePeak && shown.maxTruePeak > truePeakLimitDb },
-        { "PLR", format(shown.maxTruePeak - shown.readings.integrated, hasTruePeak && hasIntegrated), "LU", false },
-        { "PSR", format(shown.recentTruePeak - shown.readings.shortTerm, shown.recentTruePeak > -150.f && hasShortTerm), "LU", false },
+    const Readout readouts[] {
+        { "PSR", format(shown.recentTruePeak - shown.readings.shortTerm, shown.recentTruePeak > -150.f && hasShortTerm), "LU" },
+        { "PLR", format(shown.maxTruePeak - shown.readings.integrated, hasTruePeak && hasIntegrated), "LU" },
+        { "MOMENTARY", format(shown.readings.momentary, isLoudness(shown.readings.momentary)), "LUFS" },
     };
 
-    area.removeFromTop(10);
-    const int rowHeight = juce::jmin(34, area.getHeight() / (int)std::size(rows));
-
-    for (const auto& row : rows)
+    for (const auto& readout : readouts)
     {
-        auto line = area.removeFromTop(rowHeight);
-
-        g.setColour(Theme::grid);
-        g.fillRect(line.removeFromTop(1));
-
-        g.setFont(Theme::labelFont());
-        g.setColour(Theme::textDim);
-        g.drawText(row.name, line.removeFromLeft(90), juce::Justification::centredLeft);
+        g.setFont(labelFont);
         g.setColour(Theme::textFaint);
-        g.drawText(row.unit, line.removeFromRight(36), juce::Justification::centredLeft);
+        g.drawText(readout.unit, area.removeFromRight(Theme::textWidth(labelFont, readout.unit) + 2), juce::Justification::centredRight);
 
-        g.setFont(Theme::font(18.f));
-        g.setColour(row.warn ? Theme::over : Theme::text);
-        g.drawText(row.value, line.withTrimmedRight(8), juce::Justification::centredRight);
+        g.setFont(valueFont);
+        g.setColour(Theme::text);
+        g.drawText(readout.value, area.removeFromRight(44).withTrimmedRight(5), juce::Justification::centredRight);
+
+        g.setFont(labelFont);
+        g.setColour(Theme::textDim);
+        g.drawText(readout.name, area.removeFromRight(Theme::textWidth(labelFont, readout.name) + 2), juce::Justification::centredRight);
+
+        area.removeFromRight(16);
+    }
+
+    // Name the lines of the graph in their colors, in what is left
+    struct Line
+    {
+        const char* name;
+        juce::Colour colour;
+    };
+
+    const Line lines[] {
+        { "SHORT TERM", Theme::accent },
+        { "MOMENTARY", Theme::second },
+        { "INTEGRATED", juce::Colours::white },
+    };
+
+    g.setFont(labelFont);
+    for (const auto& line : lines)
+    {
+        const int width = Theme::textWidth(labelFont, line.name) + 16;
+        if (width > area.getWidth())
+            break;
+
+        g.setColour(line.colour);
+        g.drawText(line.name, area.removeFromLeft(width), juce::Justification::centredLeft);
     }
 }
 
@@ -156,7 +157,7 @@ void LoudnessView::paintHistory(juce::Graphics& g, juce::Rectangle<int> area)
     const float reference = getReferenceLufs();
     const float top = reference + rangeAboveTarget, bottom = reference - rangeBelowTarget;
 
-    auto plot = area.withTrimmedRight(34).withTrimmedBottom(18).toFloat();
+    auto plot = area.withTrimmedRight(scaleWidth).withTrimmedBottom(18).toFloat();
     auto yOf = [&](float lufs) { return juce::jmap(juce::jlimit(bottom, top, lufs), bottom, top, plot.getBottom(), plot.getY()); };
 
     // Draw a grid line every 9 LU, and label the levels down the right
@@ -264,14 +265,4 @@ void LoudnessView::paintHistory(juce::Graphics& g, juce::Rectangle<int> area)
             g.drawText("TARGET", plot.toNearestInt().withY(juce::roundToInt(y) + 2).withHeight(12).reduced(6, 0), juce::Justification::centredRight);
         }
     }
-
-    // Name the lines in their colors
-    auto legend = plot.toNearestInt().withTrimmedLeft(10).withTrimmedTop(6).removeFromTop(14);
-    g.setFont(Theme::labelFont());
-    g.setColour(Theme::accent);
-    g.drawText("SHORT TERM", legend.removeFromLeft(84), juce::Justification::centredLeft);
-    g.setColour(Theme::second);
-    g.drawText("MOMENTARY", legend.removeFromLeft(84), juce::Justification::centredLeft);
-    g.setColour(juce::Colours::white);
-    g.drawText("INTEGRATED", legend.removeFromLeft(84), juce::Justification::centredLeft);
 }
