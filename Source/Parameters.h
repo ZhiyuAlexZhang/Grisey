@@ -101,7 +101,7 @@ namespace Parameters
     //==============================================================================
     // The saved state is the APVTS tree as XML, tagged with this version number.
     // Raise it whenever the meaning of a saved value changes, and migrate older
-    // states in MultiMeterAudioProcessor::setStateInformation().
+    // states in GriseyAudioProcessor::setStateInformation().
     inline constexpr int currentStateVersion = 2;
     inline const juce::Identifier stateVersionProperty { "stateVersion" };
 

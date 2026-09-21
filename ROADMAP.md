@@ -1,4 +1,7 @@
-# MultiMeter 2.0 Roadmap
+# Grisey 2.0 Roadmap
+
+Grisey was called MultiMeter up to version 1. It is named after Gérard Grisey, the composer who
+made the spectrum of a sound the material of his music.
 
 The goal of 2.0 is a metering plugin that is accurate first and good-looking second: every
 reading is computed on the audio thread from every sample, and the interface is a dark,
@@ -31,7 +34,7 @@ resizable, GPU-friendly design in the spirit of modern mastering tools.
 - [x] Show silence when the host stops sending audio, instead of freezing the last reading
 - [x] Make "inf" tick hold truly infinite (it was 60 seconds)
 - [x] Unit tests for each measurement, the ring buffer, and state loading
-- [x] `MultiMeterSnapshot`, a tool that saves a picture of the editor running a test signal
+- [x] `GriseySnapshot`, a tool that saves a picture of the editor running a test signal
 
 ## Phase 2: New meters (done)
 

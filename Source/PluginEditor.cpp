@@ -18,7 +18,7 @@ namespace
 }
 
 //==============================================================================
-MultiMeterAudioProcessorEditor::MultiMeterAudioProcessorEditor(MultiMeterAudioProcessor& p) :
+GriseyAudioProcessorEditor::GriseyAudioProcessorEditor(GriseyAudioProcessor& p) :
     AudioProcessorEditor(&p),
     audioProcessor(p),
     spectrumSource(audioProcessor),
@@ -94,13 +94,13 @@ MultiMeterAudioProcessorEditor::MultiMeterAudioProcessorEditor(MultiMeterAudioPr
     audioProcessor.truePeakDetector.read();
 }
 
-MultiMeterAudioProcessorEditor::~MultiMeterAudioProcessorEditor()
+GriseyAudioProcessorEditor::~GriseyAudioProcessorEditor()
 {
     setLookAndFeel(nullptr);
 }
 
 //==============================================================================
-void MultiMeterAudioProcessorEditor::paint(juce::Graphics& g)
+void GriseyAudioProcessorEditor::paint(juce::Graphics& g)
 {
     // The views are opaque, so this only shows as the hairlines between the displays, and under the chrome
     g.fillAll(Theme::edge);
@@ -129,7 +129,7 @@ namespace
     }
 }
 
-void MultiMeterAudioProcessorEditor::paintHeader(juce::Graphics& g, juce::Rectangle<int> area)
+void GriseyAudioProcessorEditor::paintHeader(juce::Graphics& g, juce::Rectangle<int> area)
 {
     const auto bounds = area.toFloat();
 
@@ -162,20 +162,20 @@ void MultiMeterAudioProcessorEditor::paintHeader(juce::Graphics& g, juce::Rectan
     g.setColour(Theme::edge);
     g.fillRect(bounds.withTop(bounds.getBottom() - 1.f));
 
-    // The name of the plugin, with its second half in the accent color
+    // The name of the plugin, with its ending in the accent color
     auto name = area.withX(juce::roundToInt(tabLeft)).withWidth(juce::roundToInt(nameTabWidth)).translated(0, 1);
     const auto nameFont = Theme::font(16.f);
-    const int multiWidth = Theme::textWidth(nameFont, "Multi"), meterWidth = Theme::textWidth(nameFont, "Meter");
-    name = name.withSizeKeepingCentre(multiWidth + meterWidth, name.getHeight());
+    const int startWidth = Theme::textWidth(nameFont, "Gris"), endWidth = Theme::textWidth(nameFont, "ey");
+    name = name.withSizeKeepingCentre(startWidth + endWidth, name.getHeight());
 
     g.setFont(nameFont);
     g.setColour(juce::Colour(0xfff0e0e0));
-    g.drawText("Multi", name.removeFromLeft(multiWidth), juce::Justification::centredLeft);
+    g.drawText("Gris", name.removeFromLeft(startWidth), juce::Justification::centredLeft);
     g.setColour(Theme::accent);
-    g.drawText("Meter", name, juce::Justification::centredLeft);
+    g.drawText("ey", name, juce::Justification::centredLeft);
 }
 
-void MultiMeterAudioProcessorEditor::paintBottomBar(juce::Graphics& g, juce::Rectangle<int> area)
+void GriseyAudioProcessorEditor::paintBottomBar(juce::Graphics& g, juce::Rectangle<int> area)
 {
     const auto bounds = area.toFloat();
 
@@ -212,7 +212,7 @@ void MultiMeterAudioProcessorEditor::paintBottomBar(juce::Graphics& g, juce::Rec
     g.strokePath(raised, juce::PathStrokeType(1.f));
 }
 
-void MultiMeterAudioProcessorEditor::resized()
+void GriseyAudioProcessorEditor::resized()
 {
     auto bounds = getLocalBounds();
 
@@ -251,7 +251,7 @@ void MultiMeterAudioProcessorEditor::resized()
 }
 
 //==============================================================================
-void MultiMeterAudioProcessorEditor::vBlank(double timestampSeconds)
+void GriseyAudioProcessorEditor::vBlank(double timestampSeconds)
 {
     if (lastUpdateTime < 0.0)
     {
@@ -273,7 +273,7 @@ void MultiMeterAudioProcessorEditor::vBlank(double timestampSeconds)
     updateMeters((float)juce::jmin(elapsedSeconds, 0.1));
 }
 
-void MultiMeterAudioProcessorEditor::updateMeters(float elapsedSeconds)
+void GriseyAudioProcessorEditor::updateMeters(float elapsedSeconds)
 {
     using namespace Parameters;
 
@@ -371,7 +371,7 @@ void MultiMeterAudioProcessorEditor::updateMeters(float elapsedSeconds)
 }
 
 //==============================================================================
-void MultiMeterAudioProcessorEditor::showMainView(int viewId)
+void GriseyAudioProcessorEditor::showMainView(int viewId)
 {
     tabs.setSelection(viewId);
     controlBar.showView(viewId);
@@ -386,7 +386,7 @@ void MultiMeterAudioProcessorEditor::showMainView(int viewId)
     loudnessView.setVisible(viewId == Parameters::viewLoudness);
 }
 
-void MultiMeterAudioProcessorEditor::buildMeterSettingsMenu(juce::PopupMenu& menu)
+void GriseyAudioProcessorEditor::buildMeterSettingsMenu(juce::PopupMenu& menu)
 {
     using namespace Parameters;
     auto& apvts = audioProcessor.apvts;
@@ -421,17 +421,17 @@ void MultiMeterAudioProcessorEditor::buildMeterSettingsMenu(juce::PopupMenu& men
 }
 
 //==============================================================================
-float MultiMeterAudioProcessorEditor::getValue(const juce::String& parameterID) const
+float GriseyAudioProcessorEditor::getValue(const juce::String& parameterID) const
 {
     return audioProcessor.apvts.getRawParameterValue(parameterID)->load();
 }
 
-int MultiMeterAudioProcessorEditor::getChoice(const juce::String& parameterID) const
+int GriseyAudioProcessorEditor::getChoice(const juce::String& parameterID) const
 {
     return juce::roundToInt(getValue(parameterID));
 }
 
-bool MultiMeterAudioProcessorEditor::isOn(const juce::String& parameterID) const
+bool GriseyAudioProcessorEditor::isOn(const juce::String& parameterID) const
 {
     return getValue(parameterID) > 0.5f;
 }

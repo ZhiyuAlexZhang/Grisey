@@ -22,12 +22,12 @@
 using namespace juce;
 
 //==============================================================================
-class MultiMeterAudioProcessor  : public juce::AudioProcessor
+class GriseyAudioProcessor  : public juce::AudioProcessor
 {
 public:
     //==============================================================================
-    MultiMeterAudioProcessor();
-    ~MultiMeterAudioProcessor() override;
+    GriseyAudioProcessor();
+    ~GriseyAudioProcessor() override;
 
     //==============================================================================
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
@@ -96,5 +96,5 @@ private:
     std::atomic<float>* averagerDurationParameter = nullptr;
 
     //==============================================================================
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MultiMeterAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GriseyAudioProcessor)
 };

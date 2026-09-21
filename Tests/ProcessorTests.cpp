@@ -282,12 +282,12 @@ struct ProcessorTests : juce::UnitTest
 {
     ProcessorTests() : juce::UnitTest("Processor") {}
 
-    static float getValue(MultiMeterAudioProcessor& processor, const juce::String& parameterID)
+    static float getValue(GriseyAudioProcessor& processor, const juce::String& parameterID)
     {
         return processor.apvts.getRawParameterValue(parameterID)->load();
     }
 
-    static void setValue(MultiMeterAudioProcessor& processor, const juce::String& parameterID, float value)
+    static void setValue(GriseyAudioProcessor& processor, const juce::String& parameterID, float value)
     {
         auto* parameter = processor.apvts.getParameter(parameterID);
         parameter->setValueNotifyingHost(parameter->convertTo0to1(value));
@@ -299,7 +299,7 @@ struct ProcessorTests : juce::UnitTest
 
         beginTest("processBlock measures the block and passes it through unchanged");
         {
-            MultiMeterAudioProcessor processor;
+            GriseyAudioProcessor processor;
             processor.setPlayConfigDetails(2, 2, testSampleRate, 512);
             processor.prepareToPlay(testSampleRate, 512);
 
@@ -323,7 +323,7 @@ struct ProcessorTests : juce::UnitTest
 
         beginTest("A mono layout is analyzed as dual mono");
         {
-            MultiMeterAudioProcessor processor;
+            GriseyAudioProcessor processor;
             juce::AudioProcessor::BusesLayout layout;
             layout.inputBuses.add(juce::AudioChannelSet::mono());
             layout.outputBuses.add(juce::AudioChannelSet::mono());
@@ -346,7 +346,7 @@ struct ProcessorTests : juce::UnitTest
 
         beginTest("Blocks of any size are accepted, including empty ones");
         {
-            MultiMeterAudioProcessor processor;
+            GriseyAudioProcessor processor;
             processor.setPlayConfigDetails(2, 2, testSampleRate, 512);
             processor.prepareToPlay(testSampleRate, 512);
 
@@ -362,7 +362,7 @@ struct ProcessorTests : juce::UnitTest
 
         beginTest("Settings survive a save and a load");
         {
-            MultiMeterAudioProcessor saved;
+            GriseyAudioProcessor saved;
             setValue(saved, Parameters::ID::goniometerScale, 150.f);
             setValue(saved, Parameters::ID::decayRate, 3.f);
             setValue(saved, Parameters::ID::holdTime, 5.f);
@@ -374,7 +374,7 @@ struct ProcessorTests : juce::UnitTest
             juce::MemoryBlock state;
             saved.getStateInformation(state);
 
-            MultiMeterAudioProcessor loaded;
+            GriseyAudioProcessor loaded;
             loaded.setStateInformation(state.getData(), (int) state.getSize());
 
             expectEquals(getValue(loaded, Parameters::ID::goniometerScale), 150.f);
@@ -388,7 +388,7 @@ struct ProcessorTests : juce::UnitTest
 
         beginTest("The saved state carries its version number");
         {
-            MultiMeterAudioProcessor processor;
+            GriseyAudioProcessor processor;
             juce::MemoryBlock state;
             processor.getStateInformation(state);
 
@@ -414,7 +414,7 @@ struct ProcessorTests : juce::UnitTest
             }
             expectEquals((int) legacy.getSize(), Parameters::legacyStateSizeInBytes);
 
-            MultiMeterAudioProcessor processor;
+            GriseyAudioProcessor processor;
             processor.setStateInformation(legacy.getData(), (int) legacy.getSize());
 
             expectEquals(getValue(processor, Parameters::ID::goniometerScale), 125.f);
@@ -439,7 +439,7 @@ struct ProcessorTests : juce::UnitTest
                 stream.writeInt(-1);
             }
 
-            MultiMeterAudioProcessor processor;
+            GriseyAudioProcessor processor;
             processor.setStateInformation(legacy.getData(), (int) legacy.getSize());
 
             expectEquals(getValue(processor, Parameters::ID::goniometerScale), 100.f);
@@ -451,7 +451,7 @@ struct ProcessorTests : juce::UnitTest
 
         beginTest("Unreadable state is ignored");
         {
-            MultiMeterAudioProcessor processor;
+            GriseyAudioProcessor processor;
             setValue(processor, Parameters::ID::decayRate, 2.f);
 
             const std::array<char, 7> garbage { 'g', 'a', 'r', 'b', 'a', 'g', 'e' };

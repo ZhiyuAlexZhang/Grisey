@@ -1,8 +1,10 @@
-# MultiMeter
+# Grisey
+
+Grisey was called MultiMeter up to version 1. Sessions that were saved with MultiMeter open with Grisey in its place, with their settings.
 
 ## Overview
 
-MultiMeter, a cutting-edge AU/VST3/CLAP audio analyzer, caters to audio engineers, producers, and musicians who seek precision and versatility. Leveraging the JUCE framework, MultiMeter delivers a robust array of features for pristine real-time audio analysis, enhancing mixing, mastering, and sound design processes.
+Grisey, a cutting-edge AU/VST3/CLAP audio analyzer, caters to audio engineers, producers, and musicians who seek precision and versatility. Leveraging the JUCE framework, Grisey delivers a robust array of features for pristine real-time audio analysis, enhancing mixing, mastering, and sound design processes.
 
 ![The spectrum view](docs/images/spectrum.png)
 
@@ -42,7 +44,7 @@ MultiMeter, a cutting-edge AU/VST3/CLAP audio analyzer, caters to audio engineer
 ### Interface, formats and settings
 - A resizable interface inspired by FabFilter's plugins, which redraws at 30 or 60 frames per second.
 - VST3, AU, CLAP, and Standalone. Mono and stereo.
-- Every setting is saved with the session, and sessions saved by version 1 still load.
+- Every setting is saved with the session, and sessions saved by version 1, when it was called MultiMeter, still load.
 
 ## Installing
 
@@ -58,7 +60,7 @@ The builds are not signed or notarized, so macOS will refuse to load them until 
 quarantine flag that it puts on downloads. After copying, run this for each plugin you installed:
 
 ```bash
-xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/MultiMeter.vst3
+xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/Grisey.vst3
 ```
 
 On Windows, SmartScreen may warn about the standalone app; choose "More info", then "Run anyway".
@@ -66,7 +68,7 @@ If you would rather not run unsigned builds, build from source as described belo
 
 ## Building
 
-MultiMeter builds with CMake 3.22 or later and a C++20 compiler. JUCE 9 and
+Grisey builds with CMake 3.22 or later and a C++20 compiler. JUCE 9 and
 clap-juce-extensions are included as git submodules.
 
 ```bash
@@ -77,7 +79,7 @@ cmake --build build --config Release --parallel
 ```
 
 The VST3, AU (macOS only), CLAP, and Standalone builds are written to
-`build/MultiMeter_artefacts/Release`. Add `-DMULTIMETER_COPY_AFTER_BUILD=ON` to install them
+`build/Grisey_artefacts/Release`. Add `-DGRISEY_COPY_AFTER_BUILD=ON` to install them
 into your user plugin folders as part of the build.
 
 To run the unit tests:
@@ -89,7 +91,7 @@ ctest --test-dir build -C Release --output-on-failure
 To save a picture of the editor running a test signal, without opening a host:
 
 ```bash
-build/MultiMeterSnapshot_artefacts/Release/MultiMeterSnapshot editor.png 4
+build/GriseySnapshot_artefacts/Release/GriseySnapshot editor.png 4
 ```
 
 The number picks the view (0 goniometer, 1 spectrum, 2 spectrogram, 3 history, 4 loudness).
@@ -103,11 +105,11 @@ Version 2.0 is in progress. See [ROADMAP.md](ROADMAP.md) for the plan.
 
 ## Licence and credits
 
-MultiMeter is free software under the GPLv3 (see [LICENSE.md](LICENSE.md)). It is built with
+Grisey is free software under the GPLv3 (see [LICENSE.md](LICENSE.md)). It is built with
 [JUCE](https://juce.com), used under the AGPLv3, and
 [clap-juce-extensions](https://github.com/free-audio/clap-juce-extensions).
 
-The look of the interface is inspired by FabFilter's plugins. MultiMeter is an independent project:
+The look of the interface is inspired by FabFilter's plugins. Grisey is an independent project:
 it is not made, endorsed, or supported by FabFilter, and it uses none of their artwork or code.
 
 ## Dependencies

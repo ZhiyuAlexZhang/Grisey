@@ -6,10 +6,10 @@
 //==============================================================================
 // The look of the standard JUCE components that the interface uses: the popup
 // menus, the rotary knob, and the corner resizer.
-class MultiMeterLookAndFeel : public juce::LookAndFeel_V4
+class GriseyLookAndFeel : public juce::LookAndFeel_V4
 {
 public:
-    MultiMeterLookAndFeel()
+    GriseyLookAndFeel()
     {
         setColour(juce::PopupMenu::backgroundColourId, Theme::menu);
         setColour(juce::PopupMenu::textColourId, Theme::text);

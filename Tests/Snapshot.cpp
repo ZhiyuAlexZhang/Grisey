@@ -5,7 +5,7 @@
 // A development tool that runs the real editor with a test signal, and saves a
 // picture of it. It shows what the plugin looks like without a host.
 //
-//   MultiMeterSnapshot <output.png> [view] [seconds] [parameterID=value ...]
+//   GriseySnapshot <output.png> [view] [seconds] [parameterID=value ...]
 //
 // The views are 0 goniometer, 1 analyzer, 2 spectrogram, 3 histogram and 4 loudness.
 // Any parameter can be set by its ID, for example spectrumChannels=1 or goniometerMode=1,
@@ -18,7 +18,7 @@ int main(int argc, char* argv[])
 {
     if (argc < 2)
     {
-        std::cout << "Usage: MultiMeterSnapshot <output.png> [view] [seconds] [parameterID=value ...]" << std::endl;
+        std::cout << "Usage: GriseySnapshot <output.png> [view] [seconds] [parameterID=value ...]" << std::endl;
         return 1;
     }
 
@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
     constexpr double sampleRate = 48000.0;
     constexpr int blockSize = 512;
 
-    MultiMeterAudioProcessor processor;
+    GriseyAudioProcessor processor;
     processor.setPlayConfigDetails(2, 2, sampleRate, blockSize);
     processor.prepareToPlay(sampleRate, blockSize);
 

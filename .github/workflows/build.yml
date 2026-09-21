@@ -47,14 +47,14 @@ jobs:
           curl -fsSL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/latest/download/${{ matrix.pluginval }}"
           unzip -q pluginval.zip
           "./${{ matrix.pluginval_bin }}" --strictness-level 10 --validate-in-process --skip-gui-tests \
-            --validate "build/MultiMeter_artefacts/Release/VST3/MultiMeter.vst3"
+            --validate "build/Grisey_artefacts/Release/VST3/Grisey.vst3"
 
       - name: Upload plugins
         uses: actions/upload-artifact@v4
         with:
-          name: MultiMeter-${{ matrix.name }}
+          name: Grisey-${{ matrix.name }}
           path: |
-            build/MultiMeter_artefacts/Release/VST3
-            build/MultiMeter_artefacts/Release/AU
-            build/MultiMeter_artefacts/Release/CLAP
-            build/MultiMeter_artefacts/Release/Standalone
+            build/Grisey_artefacts/Release/VST3
+            build/Grisey_artefacts/Release/AU
+            build/Grisey_artefacts/Release/CLAP
+            build/Grisey_artefacts/Release/Standalone

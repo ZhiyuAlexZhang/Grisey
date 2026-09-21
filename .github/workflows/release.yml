@@ -43,29 +43,29 @@ jobs:
       - name: Package (macOS)
         if: runner.os == 'macOS'
         run: |
-          mkdir -p "package/MultiMeter ${{ github.ref_name }}"
-          cd build/MultiMeter_artefacts/Release
-          cp -R VST3/MultiMeter.vst3 AU/MultiMeter.component CLAP/MultiMeter.clap Standalone/MultiMeter.app "$GITHUB_WORKSPACE/package/MultiMeter ${{ github.ref_name }}/"
+          mkdir -p "package/Grisey ${{ github.ref_name }}"
+          cd build/Grisey_artefacts/Release
+          cp -R VST3/Grisey.vst3 AU/Grisey.component CLAP/Grisey.clap Standalone/Grisey.app "$GITHUB_WORKSPACE/package/Grisey ${{ github.ref_name }}/"
           cd "$GITHUB_WORKSPACE"
-          cp LICENSE.md README.md "package/MultiMeter ${{ github.ref_name }}/"
-          ditto -c -k --keepParent "package/MultiMeter ${{ github.ref_name }}" "MultiMeter-${{ github.ref_name }}-macOS.zip"
+          cp LICENSE.md README.md "package/Grisey ${{ github.ref_name }}/"
+          ditto -c -k --keepParent "package/Grisey ${{ github.ref_name }}" "Grisey-${{ github.ref_name }}-macOS.zip"
 
       - name: Package (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $folder = "package/MultiMeter ${{ github.ref_name }}"
+          $folder = "package/Grisey ${{ github.ref_name }}"
           New-Item -ItemType Directory -Force -Path $folder | Out-Null
-          Copy-Item -Recurse build/MultiMeter_artefacts/Release/VST3/MultiMeter.vst3 $folder
-          Copy-Item build/MultiMeter_artefacts/Release/CLAP/MultiMeter.clap $folder
-          Copy-Item build/MultiMeter_artefacts/Release/Standalone/MultiMeter.exe $folder
+          Copy-Item -Recurse build/Grisey_artefacts/Release/VST3/Grisey.vst3 $folder
+          Copy-Item build/Grisey_artefacts/Release/CLAP/Grisey.clap $folder
+          Copy-Item build/Grisey_artefacts/Release/Standalone/Grisey.exe $folder
           Copy-Item LICENSE.md, README.md $folder
-          Compress-Archive -Path $folder -DestinationPath "MultiMeter-${{ github.ref_name }}-Windows.zip"
+          Compress-Archive -Path $folder -DestinationPath "Grisey-${{ github.ref_name }}-Windows.zip"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: MultiMeter-${{ matrix.name }}
-          path: MultiMeter-${{ github.ref_name }}-${{ matrix.name }}.zip
+          name: Grisey-${{ matrix.name }}
+          path: Grisey-${{ github.ref_name }}-${{ matrix.name }}.zip
           if-no-files-found: error
 
   release:
@@ -85,5 +85,5 @@ jobs:
           prerelease=""
           case "${{ github.ref_name }}" in *-*) prerelease="--prerelease" ;; esac
           gh release create "${{ github.ref_name }}" --repo "${{ github.repository }}" \
-            --draft $prerelease --generate-notes --title "MultiMeter ${{ github.ref_name }}" \
-            MultiMeter-*.zip
+            --draft $prerelease --generate-notes --title "Grisey ${{ github.ref_name }}" \
+            Grisey-*.zip

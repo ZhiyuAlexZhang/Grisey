@@ -10,7 +10,7 @@
 class SpectrumSource
 {
 public:
-    explicit SpectrumSource(MultiMeterAudioProcessor& p) : audioProcessor(p) {}
+    explicit SpectrumSource(GriseyAudioProcessor& p) : audioProcessor(p) {}
 
     // Analyzes the newest audio with an FFT of 2^order samples. Returns false, and leaves the
     // spectra as they were, if no audio has arrived since the last call.
@@ -48,7 +48,7 @@ public:
     }
 
 private:
-    MultiMeterAudioProcessor& audioProcessor;
+    GriseyAudioProcessor& audioProcessor;
     SpectrumEngine engine;
 
     // The most recent samples of both channels, which the FFTs analyze

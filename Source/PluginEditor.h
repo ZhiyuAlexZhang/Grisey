@@ -25,11 +25,11 @@
 #include "Views/LoudnessSummary.h"
 
 //==============================================================================
-class MultiMeterAudioProcessorEditor  : public juce::AudioProcessorEditor
+class GriseyAudioProcessorEditor  : public juce::AudioProcessorEditor
 {
 public:
-    MultiMeterAudioProcessorEditor (MultiMeterAudioProcessor&);
-    ~MultiMeterAudioProcessorEditor() override;
+    GriseyAudioProcessorEditor (GriseyAudioProcessor&);
+    ~GriseyAudioProcessorEditor() override;
 
     void paint(juce::Graphics&) override;
     void resized() override;
@@ -68,9 +68,9 @@ private:
     bool isOn(const juce::String& parameterID) const;
 
     // This reference is provided as a quick way for your editor to access the processor object that created it
-    MultiMeterAudioProcessor& audioProcessor;
+    GriseyAudioProcessor& audioProcessor;
 
-    MultiMeterLookAndFeel lookAndFeel;
+    GriseyLookAndFeel lookAndFeel;
     TabBar tabs;
 
     // The views, of which one is showing. The spectrum and the spectrogram draw the same spectra.
@@ -107,5 +107,5 @@ private:
     // Declared last, so that the callbacks stop before anything that they use is destroyed
     juce::VBlankAttachment vBlankAttachment;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MultiMeterAudioProcessorEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GriseyAudioProcessorEditor)
 };

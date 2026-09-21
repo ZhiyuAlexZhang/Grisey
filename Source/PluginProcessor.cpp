@@ -11,7 +11,7 @@
 #include "PluginEditor.h"
 
 //==============================================================================
-MultiMeterAudioProcessor::MultiMeterAudioProcessor()
+GriseyAudioProcessor::GriseyAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
      : AudioProcessor (BusesProperties()
                      #if ! JucePlugin_IsMidiEffect
@@ -31,17 +31,17 @@ MultiMeterAudioProcessor::MultiMeterAudioProcessor()
     averagerDurationParameter = apvts.getRawParameterValue(Parameters::ID::averagerDuration);
 }
 
-MultiMeterAudioProcessor::~MultiMeterAudioProcessor()
+GriseyAudioProcessor::~GriseyAudioProcessor()
 {
 }
 
 //==============================================================================
-const juce::String MultiMeterAudioProcessor::getName() const
+const juce::String GriseyAudioProcessor::getName() const
 {
     return JucePlugin_Name;
 }
 
-bool MultiMeterAudioProcessor::acceptsMidi() const
+bool GriseyAudioProcessor::acceptsMidi() const
 {
    #if JucePlugin_WantsMidiInput
     return true;
@@ -50,7 +50,7 @@ bool MultiMeterAudioProcessor::acceptsMidi() const
    #endif
 }
 
-bool MultiMeterAudioProcessor::producesMidi() const
+bool GriseyAudioProcessor::producesMidi() const
 {
    #if JucePlugin_ProducesMidiOutput
     return true;
@@ -59,7 +59,7 @@ bool MultiMeterAudioProcessor::producesMidi() const
    #endif
 }
 
-bool MultiMeterAudioProcessor::isMidiEffect() const
+bool GriseyAudioProcessor::isMidiEffect() const
 {
    #if JucePlugin_IsMidiEffect
     return true;
@@ -68,37 +68,37 @@ bool MultiMeterAudioProcessor::isMidiEffect() const
    #endif
 }
 
-double MultiMeterAudioProcessor::getTailLengthSeconds() const
+double GriseyAudioProcessor::getTailLengthSeconds() const
 {
     return 0.0;
 }
 
-int MultiMeterAudioProcessor::getNumPrograms()
+int GriseyAudioProcessor::getNumPrograms()
 {
     return 1;   // NB: some hosts don't cope very well if you tell them there are 0 programs,
                 // so this should be at least 1, even if you're not really implementing programs
 }
 
-int MultiMeterAudioProcessor::getCurrentProgram()
+int GriseyAudioProcessor::getCurrentProgram()
 {
     return 0;
 }
 
-void MultiMeterAudioProcessor::setCurrentProgram (int)
+void GriseyAudioProcessor::setCurrentProgram (int)
 {
 }
 
-const juce::String MultiMeterAudioProcessor::getProgramName (int)
+const juce::String GriseyAudioProcessor::getProgramName (int)
 {
     return {};
 }
 
-void MultiMeterAudioProcessor::changeProgramName (int, const juce::String&)
+void GriseyAudioProcessor::changeProgramName (int, const juce::String&)
 {
 }
 
 //==============================================================================
-void MultiMeterAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+void GriseyAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     // Use this method as the place to do any pre-playback initialization
     juce::ignoreUnused(samplesPerBlock);
@@ -119,14 +119,14 @@ void MultiMeterAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
     #endif
 }
 
-void MultiMeterAudioProcessor::releaseResources()
+void GriseyAudioProcessor::releaseResources()
 {
     // When playback stops, you can use this as an opportunity to free up any
     // spare memory, etc.
 }
 
 #ifndef JucePlugin_PreferredChannelConfigurations
-bool MultiMeterAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+bool GriseyAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
   #if JucePlugin_IsMidiEffect
     juce::ignoreUnused (layouts);
@@ -151,7 +151,7 @@ bool MultiMeterAudioProcessor::isBusesLayoutSupported (const BusesLayout& layout
 }
 #endif
 
-void MultiMeterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
+void GriseyAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals noDenormals;
     auto totalNumInputChannels  = getTotalNumInputChannels();
@@ -204,7 +204,7 @@ void MultiMeterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
 #endif
 }
 
-void MultiMeterAudioProcessor::resetLoudness()
+void GriseyAudioProcessor::resetLoudness()
 {
     // The meters restart themselves at the start of the next block
     loudnessMeter.requestReset();
@@ -212,18 +212,18 @@ void MultiMeterAudioProcessor::resetLoudness()
 }
 
 //==============================================================================
-bool MultiMeterAudioProcessor::hasEditor() const
+bool GriseyAudioProcessor::hasEditor() const
 {
     return true; // (change this to false if you choose to not supply an editor)
 }
 
-juce::AudioProcessorEditor* MultiMeterAudioProcessor::createEditor()
+juce::AudioProcessorEditor* GriseyAudioProcessor::createEditor()
 {
-    return new MultiMeterAudioProcessorEditor (*this);
+    return new GriseyAudioProcessorEditor (*this);
 }
 
 //==============================================================================
-void MultiMeterAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
+void GriseyAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     // The state is the parameter tree as XML, tagged with a version number so
     // that later versions can tell how to read it
@@ -234,7 +234,7 @@ void MultiMeterAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
         copyXmlToBinary(*xml, destData);
 }
 
-void MultiMeterAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
+void GriseyAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     if (auto xml = getXmlFromBinary(data, sizeInBytes))
     {
@@ -250,7 +250,7 @@ void MultiMeterAudioProcessor::setStateInformation(const void* data, int sizeInB
         applyLegacyState(legacyState);
 }
 
-void MultiMeterAudioProcessor::applyLegacyState(const Parameters::LegacyState& state)
+void GriseyAudioProcessor::applyLegacyState(const Parameters::LegacyState& state)
 {
     auto set = [this](const juce::String& parameterID, float value)
     {
@@ -270,5 +270,5 @@ void MultiMeterAudioProcessor::applyLegacyState(const Parameters::LegacyState& s
 // This creates new instances of the plugin
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new MultiMeterAudioProcessor();
+    return new GriseyAudioProcessor();
 }
