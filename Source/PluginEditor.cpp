@@ -135,10 +135,30 @@ void GriseyAudioProcessorEditor::paint(juce::Graphics& g)
 
 namespace
 {
-    // The widths of the raised tab that holds the name, and of the shoulders on either side of it
-    constexpr float nameTabStart = 6.f;
-    constexpr float nameTabWidth = 250.f;
+    // The raised tab that holds the name starts at the left edge of the window, as FabFilter's does, and is as
+    // wide as the line in it with this much on either side. It ends in a shoulder of this width.
+    constexpr float namePaddingLeft = 16.f;
+    constexpr float namePaddingRight = 4.f;
     constexpr float shoulderWidth = 46.f;
+
+    juce::Font makerFont()
+    {
+        return Theme::font(Wordmark::makerFontHeight).withExtraKerningFactor(Wordmark::makerKerning);
+    }
+
+    // The width of the line in the tab: the maker, a flourish, the name, a flourish
+    float nameLineWidth()
+    {
+        const float wordWidth = Wordmark::width * Wordmark::heightInHeader / Wordmark::height;
+        const float flourish = Wordmark::ruleGap + Wordmark::ruleLength;
+        return (float)Theme::textWidth(makerFont(), Wordmark::maker) + Wordmark::makerGap + flourish + wordWidth + flourish;
+    }
+
+    // Where the flat part of the tab ends and its shoulder begins
+    float nameTabRight()
+    {
+        return namePaddingLeft + nameLineWidth() + namePaddingRight;
+    }
 
     // The thickness of the raised edge that runs along the rest of the chrome
     constexpr float rimThickness = 4.f;
@@ -160,10 +180,9 @@ void GriseyAudioProcessorEditor::paintHeader(juce::Graphics& g, juce::Rectangle<
     g.setGradientFill(juce::ColourGradient(Theme::chromeInsetTop, 0.f, bounds.getY(), Theme::chromeInsetBottom, 0.f, bounds.getBottom(), false));
     g.fillRect(bounds);
 
-    // The raised part: a rim along the top, which drops into a tab for the name
+    // The raised part: a rim along the top, which drops into a tab for the name at the left edge of the window
     const float rim = bounds.getY() + rimThickness;
-    const float tabLeft = bounds.getX() + nameTabStart + shoulderWidth;
-    const float tabRight = tabLeft + nameTabWidth;
+    const float tabRight = bounds.getX() + nameTabRight();
 
     juce::Path raised;
     raised.startNewSubPath(bounds.getTopLeft());
@@ -171,9 +190,7 @@ void GriseyAudioProcessorEditor::paintHeader(juce::Graphics& g, juce::Rectangle<
     raised.lineTo(bounds.getRight(), rim);
     raised.lineTo(tabRight + shoulderWidth, rim);
     shoulderTo(raised, { tabRight, bounds.getBottom() });
-    raised.lineTo(tabLeft, bounds.getBottom());
-    shoulderTo(raised, { bounds.getX() + nameTabStart, rim });
-    raised.lineTo(bounds.getX(), rim);
+    raised.lineTo(bounds.getBottomLeft());
     raised.closeSubPath();
 
     g.setGradientFill(juce::ColourGradient(Theme::chromeTop, 0.f, bounds.getY(), Theme::chromeBottom, 0.f, bounds.getBottom(), false));
@@ -185,7 +202,7 @@ void GriseyAudioProcessorEditor::paintHeader(juce::Graphics& g, juce::Rectangle<
     g.setColour(Theme::edge);
     g.fillRect(bounds.withTop(bounds.getBottom() - 1.f));
 
-    paintName(g, juce::Rectangle<float>(tabLeft, bounds.getY(), nameTabWidth, bounds.getHeight()));
+    paintName(g, bounds.withWidth(nameTabRight()).withTrimmedLeft(namePaddingLeft));
 }
 
 void GriseyAudioProcessorEditor::paintName(juce::Graphics& g, juce::Rectangle<float> tab)
@@ -195,14 +212,12 @@ void GriseyAudioProcessorEditor::paintName(juce::Graphics& g, juce::Rectangle<fl
     // lighter at the top than at the bottom, set into the surface, with a flourish on either side of it.
     // The maker's name is to the left of all that, on the same line. Its place does not depend on the letters
     // of the product's name, so every plugin of the maker's can have it in the same place.
-    const auto makerFont = Theme::font(Wordmark::makerFontHeight, true).withExtraKerningFactor(Wordmark::makerKerning);
-    const float makerWidth = (float)Theme::textWidth(makerFont, Wordmark::maker);
+    const float makerWidth = (float)Theme::textWidth(makerFont(), Wordmark::maker);
     const float wordWidth = Wordmark::width * Wordmark::heightInHeader / Wordmark::height;
     const float flourish = Wordmark::ruleGap + Wordmark::ruleLength;
 
-    // The whole line is centred in the tab: the maker, a flourish, the name, a flourish
-    const float lineWidth = makerWidth + Wordmark::makerGap + flourish + wordWidth + flourish;
-    const float lineLeft = tab.getCentreX() - 0.5f * lineWidth;
+    // The line starts at the left of the tab: the maker, a flourish, the name, a flourish
+    const float lineLeft = tab.getX();
 
     const auto word = juce::Rectangle<float>(lineLeft + makerWidth + Wordmark::makerGap + flourish, 0.f, wordWidth, Wordmark::heightInHeader)
                           .withCentre({ lineLeft + makerWidth + Wordmark::makerGap + flourish + 0.5f * wordWidth, tab.getCentreY() + 0.5f });
@@ -239,9 +254,11 @@ void GriseyAudioProcessorEditor::paintName(juce::Graphics& g, juce::Rectangle<fl
     g.setGradientFill(juce::ColourGradient(Theme::wordmarkTop, 0.f, word.getY(), Theme::wordmarkBottom, 0.f, word.getBottom(), false));
     g.fillPath(wordmarkOutline, placement);
 
-    g.setFont(makerFont);
-    g.setColour(Theme::wordmarkBottom.withAlpha(0.9f));
-    g.drawText(Wordmark::maker, juce::Rectangle<float>(lineLeft - 2.f, ruleY - 8.f, makerWidth + 6.f, 16.f), juce::Justification::centredLeft);
+    // The maker's name is in the same silver as the product's
+    const auto makerArea = juce::Rectangle<float>(lineLeft, ruleY - 10.f, makerWidth + 6.f, 20.f);
+    g.setFont(makerFont());
+    g.setGradientFill(juce::ColourGradient(Theme::wordmarkTop, 0.f, makerArea.getY() + 4.f, Theme::wordmarkBottom, 0.f, makerArea.getBottom() - 4.f, false));
+    g.drawText(Wordmark::maker, makerArea, juce::Justification::centredLeft);
 }
 
 void GriseyAudioProcessorEditor::paintBottomBar(juce::Graphics& g, juce::Rectangle<int> area)
@@ -287,7 +304,7 @@ void GriseyAudioProcessorEditor::resized()
 
     // The tabs start where the shoulder of the name's tab has come up to the rim
     auto header = bounds.removeFromTop(Theme::headerHeight);
-    header.removeFromLeft(juce::roundToInt(nameTabStart + nameTabWidth + 2.f * shoulderWidth) + 4);
+    header.removeFromLeft(juce::roundToInt(nameTabRight() + shoulderWidth) + 4);
     header.removeFromTop(juce::roundToInt(rimThickness));
     tabs.setBounds(header.removeFromLeft(juce::jmin(header.getWidth(), tabs.getIdealWidth())));
 

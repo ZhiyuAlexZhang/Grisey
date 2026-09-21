@@ -133,8 +133,8 @@ namespace
 
         // The finish, in points at the height that the name has in the header
         const juce::String maker("YULANIA");
-        const float heightInHeader = 32.f, ruleGap = 9.f, ruleLength = 24.f, diamondSize = 2.2f;
-        const float makerFontHeight = 8.f, makerKerning = 0.3f, makerGap = 11.f;
+        const float heightInHeader = 32.f, ruleGap = 7.f, ruleLength = 14.f, diamondSize = 2.2f;
+        const float makerFontHeight = 13.5f, makerKerning = 0.2f, makerGap = 8.f;
 
         // Large, so that two decimal places are plenty
         const juce::Font font(juce::FontOptions(typeface, 200.f, juce::Font::plain).withStyle(style));
@@ -194,14 +194,14 @@ namespace
 
         // The maker's name as an outline too
         juce::GlyphArrangement makerGlyphs;
-        makerGlyphs.addLineOfText(Theme::font(makerFontHeight * unit, true).withExtraKerningFactor(makerKerning), maker, 0.f, 0.f);
+        makerGlyphs.addLineOfText(Theme::font(makerFontHeight * unit).withExtraKerningFactor(makerKerning), maker, 0.f, 0.f);
         juce::Path makerOutline;
         makerGlyphs.createPath(makerOutline);
         const auto makerBounds = makerOutline.getBounds();
 
         // The plate holds the same line as the header: the maker, a flourish, the name, a flourish, with the same
         // space at either end, so the name is not in the middle of it
-        const float edge = 70.f, marginY = 60.f;
+        const float edge = 60.f, marginY = 34.f;
         const float marginX = edge + makerBounds.getWidth() + (makerGap + ruleLength + ruleGap) * unit;
         const float plateWidth = marginX + width + (ruleGap + ruleLength) * unit + edge, plateHeight = height + 2.f * marginY;
         const float ruleY = marginY + 0.5f * height;
@@ -244,7 +244,7 @@ namespace
         svg << "  <path transform=\"" << place << "\" fill=\"#fbf3f3\" fill-opacity=\"0.22\" filter=\"url(#glow)\" d=\"" << data << "\"/>\n"
             << "  <path transform=\"translate(" << number(marginX) << " " << number(marginY + 1.1f * unit) << ")\" fill=\"#000\" fill-opacity=\"0.65\" d=\"" << data << "\"/>\n"
             << "  <path transform=\"" << place << "\" fill=\"url(#silver)\" d=\"" << data << "\"/>\n"
-            << "  <path fill=\"#c9bdc0\" fill-opacity=\"0.95\" d=\"" << toSvgData(makerOutline) << "\"/>\n"
+            << "  <path fill=\"url(#silver)\" d=\"" << toSvgData(makerOutline) << "\"/>\n"
             << "</svg>\n";
 
         svgFile.replaceWithText(svg, false, false, "\n");
