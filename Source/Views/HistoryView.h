@@ -20,8 +20,18 @@ public:
     void paint(juce::Graphics& g) override;
     void resized() override;
 
-    // Clicking the history clears it
+    // Clicking RMS or PEAK in the corner asks for that shape to be shown or hidden.
+    // Clicking the history itself clears it.
     void mouseDown(const juce::MouseEvent&) override;
+    void mouseMove(const juce::MouseEvent&) override;
+
+    // Which of the shapes to draw. The editor sets this from the setting that the level bars
+    // also follow, so that the bars and their history show the same.
+    void setShown(bool peak, bool rms);
+
+    // Called when RMS or PEAK has been clicked, with what should be shown from now on.
+    // One of the two is always shown: hiding the only one that is showing brings back the other.
+    std::function<void(bool showPeak, bool showRms)> onShownClicked;
 
     // Records the levels, called by the editor once per frame, whichever view is showing.
     // numNewSlots is how many slots of the timeline have been completed since the last call.
@@ -44,8 +54,9 @@ private:
     // Makes the whole image again from what has been recorded
     void rebuildImage();
 
-    juce::Rectangle<int> plot;
+    juce::Rectangle<int> plot, rmsLabel, peakLabel;
     float spanSeconds = 30.f;
+    bool showPeak = true, showRms = true;
 
     // What has been recorded, and the picture of the part of it that is shown, one column per slot
     Timeline::History<Levels> history;
@@ -55,7 +66,8 @@ private:
     Levels pending;
 
     // The colors of a column from the top down: within the RMS shape, within the peak shape, and outside
-    // both, where it is the background of the display, which is not the same color all the way down
+    // both, where it is the background of the display, which is not the same color all the way down.
+    // The peak shape is faint behind the RMS shape, and takes the solid colors when it is on its own.
     std::vector<juce::Colour> rmsColours, peakColours, backgroundColours;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HistoryView)

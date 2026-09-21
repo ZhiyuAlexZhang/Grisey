@@ -40,6 +40,21 @@ GriseyAudioProcessorEditor::GriseyAudioProcessorEditor(GriseyAudioProcessor& p) 
     tabs.setTabs(mainViewNames);
     tabs.onChange = [this](int id) { mainViewAttachment.setValueAsCompleteGesture((float)id); };
 
+    // RMS and PEAK in the corner of the history are switches for the setting that the level bars follow too
+    historyView.onShownClicked = [this](bool showPeak, bool showRms)
+    {
+        const auto view = showPeak && showRms ? Parameters::peakAndRmsMeters
+                        : showPeak            ? Parameters::peakMeters
+                                              : Parameters::rmsMeters;
+
+        if (auto* parameter = audioProcessor.apvts.getParameter(Parameters::ID::meterView))
+        {
+            parameter->beginChangeGesture();
+            parameter->setValueNotifyingHost(parameter->convertTo0to1((float)view));
+            parameter->endChangeGesture();
+        }
+    };
+
     addChildComponent(goniometerView);
     addChildComponent(spectrumView);
     addChildComponent(spectrogramView);
@@ -342,6 +357,7 @@ void GriseyAudioProcessorEditor::updateMeters(float elapsedSeconds)
 
     loudnessView.setSpan(timeSpan);
     historyView.setSpan(timeSpan);
+    historyView.setShown(meterSettings.showPeak, meterSettings.showRms);
     spectrogramView.setSpan(timeSpan);
 
     loudnessView.update(loudness, truePeakDb, maxTruePeakDb, target, numNewSlots, elapsedSeconds, readoutDue);

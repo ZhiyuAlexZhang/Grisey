@@ -11,6 +11,10 @@ void HistoryView::resized()
     // The same margins as the spectrogram, so that a moment is at the same place in both
     plot = getLocalBounds().withTrimmedLeft(34).withTrimmedRight(34).withTrimmedTop(8).withTrimmedBottom(20);
 
+    auto legend = plot.withTrimmedLeft(10).withTrimmedTop(6).removeFromTop(14);
+    rmsLabel = legend.removeFromLeft(34);
+    peakLabel = legend.removeFromLeft(40);
+
     // The same colors as the level meters: blue through the working range, yellow near full scale, red above it
     auto proportionOf = [](float decibels) { return (double)juce::jmap(decibels, minDb, maxDb, 0.f, 1.f); };
 
@@ -77,14 +81,15 @@ void HistoryView::addColumn(const Levels& levels)
 
     const int peakRow = juce::roundToInt(yOf(levels.peak)) - plot.getY();
     const int rmsRow = juce::roundToInt(yOf(levels.rms)) - plot.getY();
-    const bool hasPeak = levels.peak > minDb, hasRms = levels.rms > minDb;
+    const bool hasPeak = showPeak && levels.peak > minDb, hasRms = showRms && levels.rms > minDb;
     const int lastRow = (int)rmsColours.size() - 1;
+    const auto& peakShape = showRms ? peakColours : rmsColours;
 
     image.addColumn([&](int row)
     {
         const auto index = (size_t)juce::jmin(row, lastRow);
         return hasRms && row >= rmsRow ? rmsColours[index]
-             : hasPeak && row >= peakRow ? peakColours[index]
+             : hasPeak && row >= peakRow ? peakShape[index]
              : backgroundColours[index];
     });
 }
@@ -125,16 +130,54 @@ void HistoryView::paint(juce::Graphics& g)
 
     Timeline::drawTimeAxis(g, plot, spanSeconds);
 
-    auto legend = plot.withTrimmedLeft(10).withTrimmedTop(6).removeFromTop(14);
+    // The names of the shapes are also their switches, and go faint when a shape is hidden
     g.setFont(Theme::labelFont());
-    g.setColour(Theme::second);
-    g.drawText("RMS", legend.removeFromLeft(34), juce::Justification::centredLeft);
-    g.setColour(Theme::second.withAlpha(0.5f));
-    g.drawText("PEAK", legend.removeFromLeft(40), juce::Justification::centredLeft);
+    g.setColour(showRms ? Theme::second : Theme::textFaint);
+    g.drawText("RMS", rmsLabel, juce::Justification::centredLeft);
+    g.setColour(showPeak ? Theme::second.withAlpha(showRms ? 0.5f : 1.f) : Theme::textFaint);
+    g.drawText("PEAK", peakLabel, juce::Justification::centredLeft);
 }
 
-void HistoryView::mouseDown(const juce::MouseEvent&)
+void HistoryView::setShown(bool peak, bool rms)
 {
+    if (peak == showPeak && rms == showRms)
+        return;
+
+    showPeak = peak;
+    showRms = rms;
+    rebuildImage();
+    repaint();
+}
+
+void HistoryView::mouseMove(const juce::MouseEvent& event)
+{
+    const bool overSwitch = rmsLabel.expanded(4).contains(event.getPosition()) || peakLabel.expanded(4).contains(event.getPosition());
+    setMouseCursor(overSwitch ? juce::MouseCursor::PointingHandCursor : juce::MouseCursor::NormalCursor);
+}
+
+void HistoryView::mouseDown(const juce::MouseEvent& event)
+{
+    const bool onRms = rmsLabel.expanded(4).contains(event.getPosition());
+    const bool onPeak = !onRms && peakLabel.expanded(4).contains(event.getPosition());
+
+    if (onRms || onPeak)
+    {
+        bool peak = onPeak ? !showPeak : showPeak;
+        bool rms = onRms ? !showRms : showRms;
+
+        // Hiding the only shape that is showing brings back the other one
+        if (!peak && !rms)
+        {
+            peak = onRms;
+            rms = onPeak;
+        }
+
+        if (onShownClicked != nullptr)
+            onShownClicked(peak, rms);
+
+        return;
+    }
+
     history.clear();
     rebuildImage();
     repaint();
