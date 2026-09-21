@@ -191,7 +191,7 @@ void SpectrogramView::mouseExit(const juce::MouseEvent&)
     }
 }
 
-void SpectrogramView::mouseDown(const juce::MouseEvent&)
+void SpectrogramView::clearHistory()
 {
     lastColumn.fill(0);
     history.clear();

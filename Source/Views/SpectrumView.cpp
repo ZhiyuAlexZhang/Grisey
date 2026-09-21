@@ -340,7 +340,11 @@ void SpectrumView::mouseExit(const juce::MouseEvent&)
 
 void SpectrumView::mouseDown(const juce::MouseEvent&)
 {
-    // Restart the peak hold from the current curves
+    resetPeakHold();
+}
+
+void SpectrumView::resetPeakHold()
+{
     for (auto& hold : peakHolds)
         hold.clear();
 }

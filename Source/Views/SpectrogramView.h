@@ -29,8 +29,8 @@ public:
     void mouseMove(const juce::MouseEvent&) override;
     void mouseExit(const juce::MouseEvent&) override;
 
-    // Clicking the spectrogram clears it
-    void mouseDown(const juce::MouseEvent&) override;
+    // Forgets what has been recorded
+    void clearHistory();
 
     // Records the source's spectra, called by the editor once per frame, whichever view is showing.
     //  - numNewSlots:   how many slots of the timeline have been completed since the last call

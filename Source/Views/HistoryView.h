@@ -20,18 +20,11 @@ public:
     void paint(juce::Graphics& g) override;
     void resized() override;
 
-    // Clicking RMS or PEAK in the corner asks for that shape to be shown or hidden.
-    // Clicking the history itself clears it.
-    void mouseDown(const juce::MouseEvent&) override;
-    void mouseMove(const juce::MouseEvent&) override;
-
-    // Which of the shapes to draw. The editor sets this from the setting that the level bars
-    // also follow, so that the bars and their history show the same.
+    // Which of the shapes to draw
     void setShown(bool peak, bool rms);
 
-    // Called when RMS or PEAK has been clicked, with what should be shown from now on.
-    // One of the two is always shown: hiding the only one that is showing brings back the other.
-    std::function<void(bool showPeak, bool showRms)> onShownClicked;
+    // Forgets what has been recorded
+    void clearHistory();
 
     // Records the levels, called by the editor once per frame, whichever view is showing.
     // numNewSlots is how many slots of the timeline have been completed since the last call.
@@ -54,7 +47,7 @@ private:
     // Makes the whole image again from what has been recorded
     void rebuildImage();
 
-    juce::Rectangle<int> plot, rmsLabel, peakLabel;
+    juce::Rectangle<int> plot;
     float spanSeconds = 30.f;
     bool showPeak = true, showRms = true;
 

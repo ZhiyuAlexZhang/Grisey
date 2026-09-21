@@ -30,6 +30,7 @@ namespace Parameters
         inline const juce::String loudnessTarget { "loudnessTarget" };
         inline const juce::String refreshRate { "refreshRate" };
         inline const juce::String timeSpan { "timeSpan" };
+        inline const juce::String historyShow { "historyShow" };
     }
 
     // The options of each choice parameter, and the values that they stand for
@@ -42,6 +43,7 @@ namespace Parameters
     inline const juce::StringArray averagerDurationNames { "100ms", "250ms", "500ms", "1000ms", "2000ms" };
     inline constexpr std::array<float, 5> averagerDurationsSeconds { 0.1f, 0.25f, 0.5f, 1.f, 2.f };
 
+    // What the level bars show, and, as a setting of its own, what the history of the levels shows
     inline const juce::StringArray meterViewNames { "Peak + RMS", "Peak", "RMS" };
     inline const juce::StringArray mainViewNames { "Goniometer", "Spectrum", "Spectrogram", "History", "Loudness" };
 
@@ -189,6 +191,7 @@ namespace Parameters
         layout.add(std::make_unique<Choice>(juce::ParameterID { ID::loudnessTarget, 2 }, "Loudness Target", loudnessTargetNames, 1, display));
         layout.add(std::make_unique<Choice>(juce::ParameterID { ID::refreshRate, 2 }, "Refresh Rate", refreshRateNames, 0, display));
         layout.add(std::make_unique<Choice>(juce::ParameterID { ID::timeSpan, 2 }, "Time Span", timeSpanNames, 1, display));
+        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::historyShow, 2 }, "History Shows", meterViewNames, peakAndRmsMeters, display));
 
         layout.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID { ID::spectrumPeakHold, 2 }, "Spectrum Peak Hold", false,
             juce::AudioParameterBoolAttributes().withAutomatable(false)));

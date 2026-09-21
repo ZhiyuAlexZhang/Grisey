@@ -90,6 +90,11 @@ private:
     // The bottom bar
     ControlBar controlBar;
     SettingsButton meterSettingsButton { "Meters" };
+
+    // Starts every measurement again. It is in the bar with every view, because the readings
+    // that it clears are in the side column with every view.
+    TextButtonQuiet resetButton { "Reset" };
+    void resetMeasurements();
     juce::Button* freezeButton = nullptr;
 
     juce::ParameterAttachment mainViewAttachment;
@@ -97,7 +102,7 @@ private:
     // Whether the constructor has finished, before which a change of size is not the user's
     bool isConstructed = false;
 
-    // Set by the reset items of the menus, and cleared by the next update
+    // Set by the reset button and the reset item of the menu, and cleared by the next update
     bool resetTicksRequested = false;
 
     // The clock of the timeline that the spectrogram, the history and the loudness share

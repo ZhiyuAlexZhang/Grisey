@@ -45,12 +45,13 @@ The spectrogram, the history and the loudness above are pictures of the same hal
 ### One timeline
 - The spectrogram, the history and the loudness graph share one timeline. They all keep recording whichever view is showing, and they all show the same span of time (15, 30 or 60 s), so the same moment is in the same place when you switch between them.
 - Resizing the window or changing the span keeps what has been recorded.
+- One Reset button, in the bar with every view, starts every measurement again: the timeline, the integrated loudness and the range, the highest true peak, and the peak ticks. Nothing is cleared by a click on a graph.
 
 ### Goniometer
 - The stereo image with phosphor-style persistence, as a Lissajous or a polar plot.
 
 ### History
-- The peak and RMS levels over time.
+- The peak and RMS levels over time, either or both.
 
 ### Interface, formats and settings
 - A resizable interface inspired by FabFilter's plugins, which redraws at 30 or 60 frames per second.
@@ -118,7 +119,7 @@ Parameters can be set by their IDs, for example `spectrumChannels=1`, and `size=
 size of the editor. `also=2,3` stops the audio and then saves those views as well, all of the same
 moment, which shows what each view recorded while it was hidden. `audio=song.mp3` plays a file
 through the plugin in place of the test signal, and `from=30` starts it 30 s in, which is how the
-pictures on this page were made. The tool's window ignores the mouse, so that it cannot take a
+pictures on this page were made. `click=Reset@20` presses the button of that name 20 s in. The tool's window ignores the mouse, so that it cannot take a
 click that was meant for something else.
 
 ## The name, and version 1

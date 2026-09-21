@@ -64,6 +64,9 @@ public:
     // Clicking the view restarts the peak hold
     void mouseDown(const juce::MouseEvent&) override;
 
+    // Restarts the peak hold from the current curves
+    void resetPeakHold();
+
     // Moves the curves towards the source's spectra, called by the editor once per frame.
     // hasNewSpectra says whether the source has analyzed new audio since the last call. While
     // held, the curves stand still.

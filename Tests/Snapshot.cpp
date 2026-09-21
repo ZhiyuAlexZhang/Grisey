@@ -20,6 +20,9 @@
 // The whole signal swells and fades every 8 s, so every meter has something to show, and
 // there is a loud click every 5 s, which marks a moment that can be found in every view.
 //
+// click=Reset@20 presses the button of that name 20 s in, which is how a button can be tried
+// without a hand on the mouse.
+//
 // audio=song.mp3 plays a file through the plugin instead of the test signal, in a loop, and
 // from=30 starts it 30 s in. The file is read with whatever formats the system offers.
 int main(int argc, char* argv[])
@@ -81,7 +84,8 @@ int main(int argc, char* argv[])
     if (auto* parameter = processor.apvts.getParameter(Parameters::ID::mainView))
         parameter->setValueNotifyingHost(parameter->convertTo0to1((float) view));
 
-    juce::String size;
+    juce::String size, buttonToClick;
+    double secondsUntilClick = 0.0;
     juce::Array<int> alsoViews;
 
     for (int i = 4; i < argc; ++i)
@@ -92,7 +96,12 @@ int main(int argc, char* argv[])
         if (id == "audio" || id == "from")
             continue;
 
-        if (id == "size")
+        if (id == "click")
+        {
+            buttonToClick = argument.fromFirstOccurrenceOf("=", false, false).upToFirstOccurrenceOf("@", false, false);
+            secondsUntilClick = argument.fromFirstOccurrenceOf("@", false, false).getDoubleValue();
+        }
+        else if (id == "size")
             size = argument.fromFirstOccurrenceOf("=", false, false);
         else if (id == "also")
             for (auto& token : juce::StringArray::fromTokens(argument.fromFirstOccurrenceOf("=", false, false), ",", {}))
@@ -199,6 +208,19 @@ int main(int argc, char* argv[])
             saveOtherView(index + 1);
         });
     };
+
+    // Press the button that was asked for, when its time comes
+    if (editor != nullptr && buttonToClick.isNotEmpty())
+    {
+        juce::Timer::callAfterDelay((int) (secondsUntilClick * 1000.0), [&]
+        {
+            for (auto* child : editor->getChildren())
+                if (auto* button = dynamic_cast<juce::Button*>(child); button != nullptr && button->getName() == buttonToClick)
+                    return button->triggerClick();
+
+            std::cout << "There is no button called " << buttonToClick << std::endl;
+        });
+    }
 
     // Let the editor run for a while, then take the pictures
     juce::Timer::callAfterDelay((int) (seconds * 1000.0), [&]

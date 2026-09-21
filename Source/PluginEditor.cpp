@@ -40,21 +40,6 @@ GriseyAudioProcessorEditor::GriseyAudioProcessorEditor(GriseyAudioProcessor& p) 
     tabs.setTabs(mainViewNames);
     tabs.onChange = [this](int id) { mainViewAttachment.setValueAsCompleteGesture((float)id); };
 
-    // RMS and PEAK in the corner of the history are switches for the setting that the level bars follow too
-    historyView.onShownClicked = [this](bool showPeak, bool showRms)
-    {
-        const auto view = showPeak && showRms ? Parameters::peakAndRmsMeters
-                        : showPeak            ? Parameters::peakMeters
-                                              : Parameters::rmsMeters;
-
-        if (auto* parameter = audioProcessor.apvts.getParameter(Parameters::ID::meterView))
-        {
-            parameter->beginChangeGesture();
-            parameter->setValueNotifyingHost(parameter->convertTo0to1((float)view));
-            parameter->endChangeGesture();
-        }
-    };
-
     addChildComponent(goniometerView);
     addChildComponent(spectrumView);
     addChildComponent(spectrogramView);
@@ -80,15 +65,17 @@ GriseyAudioProcessorEditor::GriseyAudioProcessorEditor(GriseyAudioProcessor& p) 
     // Freezing is for a moment's look, so it is not a setting that is saved
     freezeButton = &controlBar.addButton(ControlBar::views({ viewSpectrum, viewSpectrogram }), "Freeze", true, [] {});
 
+    controlBar.addMenu(ControlBar::views({ viewHistory }), apvts, ID::historyShow, "Show:");
+
     // The views that show time share one timeline, so they share its span
     controlBar.addMenu(ControlBar::views({ viewSpectrogram, viewHistory, viewLoudness }), apvts, ID::timeSpan, "Time span:");
 
     controlBar.addMenu(ControlBar::views({ viewLoudness }), apvts, ID::loudnessTarget, "Target:");
-    controlBar.addButton(ControlBar::views({ viewLoudness }), "Reset", false, [this]
-    {
-        audioProcessor.resetLoudness();
-        loudnessView.clearHistory();
-    });
+
+    // One button starts every measurement again, as the reset of a loudness meter does. Nothing
+    // is cleared by a click on a view, where a click that was meant for something else can land.
+    addAndMakeVisible(resetButton);
+    resetButton.onClick = [this] { resetMeasurements(); };
 
     // The settings of the side column's meters share one menu
     addAndMakeVisible(meterSettingsButton);
@@ -197,7 +184,7 @@ void GriseyAudioProcessorEditor::paintBottomBar(juce::Graphics& g, juce::Rectang
     // The bar is raised along its whole length, except for a dip between the controls of the view
     // and the settings of the meters, if the window is wide enough to leave room for one
     const float dipLeft = (float)controlBar.getX() + (float)controlBar.getUsedWidth() + 24.f;
-    const float dipRight = (float)meterSettingsButton.getX() - 12.f;
+    const float dipRight = (float)resetButton.getX() - 12.f;
     const bool hasDip = dipRight - dipLeft > 2.f * shoulderWidth + 20.f;
     const float rim = bounds.getBottom() - rimThickness;
 
@@ -236,6 +223,7 @@ void GriseyAudioProcessorEditor::resized()
     auto bottomBar = bounds.removeFromBottom(Theme::bottomBarHeight);
     bottomBar.removeFromRight(18); // the corner resizer
     meterSettingsButton.setBounds(bottomBar.removeFromRight(meterSettingsButton.getIdealWidth()));
+    resetButton.setBounds(bottomBar.removeFromRight(resetButton.getIdealWidth()));
     controlBar.setBounds(bottomBar.withTrimmedLeft(8));
 
     // The side column, from the bottom up: the correlation, the loudness, and the bars in what is left
@@ -357,7 +345,7 @@ void GriseyAudioProcessorEditor::updateMeters(float elapsedSeconds)
 
     loudnessView.setSpan(timeSpan);
     historyView.setSpan(timeSpan);
-    historyView.setShown(meterSettings.showPeak, meterSettings.showRms);
+    historyView.setShown(getChoice(ID::historyShow) != rmsMeters, getChoice(ID::historyShow) != peakMeters);
     spectrogramView.setSpan(timeSpan);
 
     loudnessView.update(loudness, truePeakDb, maxTruePeakDb, target, numNewSlots, elapsedSeconds, readoutDue);
@@ -408,6 +396,20 @@ void GriseyAudioProcessorEditor::showMainView(int viewId)
     spectrogramView.setVisible(viewId == Parameters::viewSpectrogram);
     historyView.setVisible(viewId == Parameters::viewHistory);
     loudnessView.setVisible(viewId == Parameters::viewLoudness);
+}
+
+void GriseyAudioProcessorEditor::resetMeasurements()
+{
+    // The loudness and the true peak restart on the audio thread, at the start of its next block
+    audioProcessor.resetLoudness();
+
+    // The three views of the timeline are cleared together, as they are recorded together
+    spectrogramView.clearHistory();
+    historyView.clearHistory();
+    loudnessView.clearHistory();
+
+    spectrumView.resetPeakHold();
+    resetTicksRequested = true;
 }
 
 void GriseyAudioProcessorEditor::buildMeterSettingsMenu(juce::PopupMenu& menu)
