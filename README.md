@@ -6,7 +6,7 @@ Grisey is built for the community, and it's built to be learned from. The measur
 
 It runs as a VST3, AU, or CLAP plugin, or as a standalone app, on macOS and Windows.
 
-**Status:** version 2.0 is in beta. It has been tested as a standalone app and in JUCE's AudioPluginHost on macOS. It has not yet been tried in every host, or much on Windows, so reports from either are welcome in the [issues](https://github.com/RealAlexZ/MultiMeter/issues).
+**Status:** version 2.0 is in beta. It has been tested as a standalone app and in JUCE's AudioPluginHost on macOS. It has not yet been tried in every host, or much on Windows, so reports from either are welcome in the [issues](https://github.com/ZhiyuAlexZhang/Grisey/issues).
 
 ![The spectrum view](docs/images/spectrum.png)
 
@@ -57,7 +57,7 @@ It runs as a VST3, AU, or CLAP plugin, or as a standalone app, on macOS and Wind
 
 Grisey needs macOS 10.15 or later (Apple Silicon or Intel), or 64-bit Windows 10 or later.
 
-Download the zip for your system from the [releases page](https://github.com/RealAlexZ/MultiMeter/releases), and copy what you need:
+Download the zip for your system from the [releases page](https://github.com/ZhiyuAlexZhang/Grisey/releases), and copy what you need:
 
 | | macOS | Windows |
 | --- | --- | --- |
@@ -81,8 +81,8 @@ Grisey builds with CMake 3.22 or later and a C++20 compiler. JUCE 9 and
 clap-juce-extensions are included as git submodules.
 
 ```bash
-git clone --recurse-submodules https://github.com/RealAlexZ/MultiMeter.git
-cd MultiMeter
+git clone --recurse-submodules https://github.com/ZhiyuAlexZhang/Grisey.git
+cd Grisey
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release --parallel
 ```
