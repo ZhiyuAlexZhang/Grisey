@@ -34,7 +34,7 @@ namespace Theme
     inline const juce::Colour panel { 0xff1d1b22 };
     inline const juce::Colour panelEdge { 0xff45424b };
     inline const juce::Colour menu { 0xff1d1b22 };
-    inline const juce::Colour menuHighlight { 0xff34313a };
+    inline const juce::Colour menuHighlight { 0xff1c4e8c };  // the solid blue bar under the item of a menu that the mouse is on
 
     // Text: grey labels in front of pale values
     inline const juce::Colour text { 0xffd1d1d2 };

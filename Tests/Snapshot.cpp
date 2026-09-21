@@ -62,11 +62,11 @@ namespace
         for (const auto& item : items)
         {
             int itemWidth = 0, itemHeight = 0;
-            lookAndFeel.getIdealPopupMenuItemSize(item.text, item.isSeparator, 0, itemWidth, itemHeight);
 
-            // A header is given half as much height again, as PopupMenu does
             if (item.isHeader)
-                itemHeight += itemHeight / 2;
+                lookAndFeel.getIdealPopupMenuSectionHeaderSizeWithOptions(item.text, -1, itemWidth, itemHeight, {});
+            else
+                lookAndFeel.getIdealPopupMenuItemSize(item.text, item.isSeparator, 0, itemWidth, itemHeight);
 
             areas.push_back({ border, y, itemWidth, itemHeight });
             width = juce::jmax(width, itemWidth);
