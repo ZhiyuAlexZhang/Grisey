@@ -7,7 +7,7 @@
 //
 //   GriseySnapshot <output.png> [view] [seconds] [parameterID=value ...]
 //
-// The views are 0 goniometer, 1 analyzer, 2 spectrogram, 3 histogram and 4 loudness.
+// The views are 0 goniometer, 1 spectrum, 2 spectrogram, 3 history and 4 loudness.
 // Any parameter can be set by its ID, for example spectrumChannels=1 or goniometerMode=1,
 // and size=1400x800 sets the size of the editor.
 //
@@ -19,6 +19,9 @@
 // the channels, a tone that sweeps up from 200 Hz to 8 kHz every 4 s, and a little noise.
 // The whole signal swells and fades every 8 s, so every meter has something to show, and
 // there is a loud click every 5 s, which marks a moment that can be found in every view.
+//
+// audio=song.mp3 plays a file through the plugin instead of the test signal, in a loop, and
+// from=30 starts it 30 s in. The file is read with whatever formats the system offers.
 int main(int argc, char* argv[])
 {
     if (argc < 2)
@@ -33,8 +36,43 @@ int main(int argc, char* argv[])
 
     juce::ScopedJuceInitialiser_GUI juceInit;
 
-    constexpr double sampleRate = 48000.0;
+    double sampleRate = 48000.0;
     constexpr int blockSize = 512;
+
+    // The file has to be read before the processor is prepared, because it decides the sample rate
+    juce::AudioBuffer<float> audioFile;
+    double audioFileStart = 0.0;
+
+    for (int i = 4; i < argc; ++i)
+    {
+        const auto argument = juce::String(argv[i]);
+        const auto value = argument.fromFirstOccurrenceOf("=", false, false);
+
+        if (argument.startsWith("from="))
+            audioFileStart = value.getDoubleValue();
+
+        if (! argument.startsWith("audio="))
+            continue;
+
+        juce::AudioFormatManager formats;
+        formats.registerBasicFormats();
+
+        const std::unique_ptr<juce::AudioFormatReader> reader(formats.createReaderFor(juce::File::getCurrentWorkingDirectory().getChildFile(value)));
+
+        if (reader == nullptr || reader->lengthInSamples < blockSize)
+        {
+            std::cout << "Could not read " << value << std::endl;
+            return 1;
+        }
+
+        sampleRate = reader->sampleRate;
+        audioFile.setSize(2, (int) reader->lengthInSamples);
+        reader->read(&audioFile, 0, (int) reader->lengthInSamples, 0, true, true);
+
+        // A mono file plays on both channels
+        if (reader->numChannels < 2)
+            audioFile.copyFrom(1, 0, audioFile, 0, 0, audioFile.getNumSamples());
+    }
 
     GriseyAudioProcessor processor;
     processor.setPlayConfigDetails(2, 2, sampleRate, blockSize);
@@ -50,6 +88,9 @@ int main(int argc, char* argv[])
     {
         const auto argument = juce::String(argv[i]);
         const auto id = argument.upToFirstOccurrenceOf("=", false, false);
+
+        if (id == "audio" || id == "from")
+            continue;
 
         if (id == "size")
             size = argument.fromFirstOccurrenceOf("=", false, false);
@@ -87,26 +128,41 @@ int main(int argc, char* argv[])
         double sweepPhase = 0.0;
         const auto start = std::chrono::steady_clock::now();
 
+        const int fileLength = audioFile.getNumSamples();
+        const auto fileOffset = (juce::int64) (audioFileStart * sampleRate);
+
         while (running.load())
         {
-            for (int i = 0; i < blockSize; ++i, ++position)
+            if (fileLength > 0)
             {
-                const double t = (double) position / sampleRate;
-                const float low = 0.4f * (float) std::sin(juce::MathConstants<double>::twoPi * 440.0 * t);
-                const float high = 0.15f * (float) std::sin(juce::MathConstants<double>::twoPi * 3000.0 * t);
+                for (int i = 0; i < blockSize; ++i, ++position)
+                {
+                    const int source = (int) ((fileOffset + position) % fileLength);
+                    block.setSample(0, i, audioFile.getSample(0, source));
+                    block.setSample(1, i, audioFile.getSample(1, source));
+                }
+            }
+            else
+            {
+                for (int i = 0; i < blockSize; ++i, ++position)
+                {
+                    const double t = (double) position / sampleRate;
+                    const float low = 0.4f * (float) std::sin(juce::MathConstants<double>::twoPi * 440.0 * t);
+                    const float high = 0.15f * (float) std::sin(juce::MathConstants<double>::twoPi * 3000.0 * t);
 
-                // The sweep rises by the same ratio in every moment, which is a straight line on the spectrogram
-                const double sweepFrequency = 200.0 * std::pow(40.0, std::fmod(t, 4.0) / 4.0);
-                sweepPhase += juce::MathConstants<double>::twoPi * sweepFrequency / sampleRate;
-                const float sweep = 0.1f * (float) std::sin(sweepPhase);
+                    // The sweep rises by the same ratio in every moment, which is a straight line on the spectrogram
+                    const double sweepFrequency = 200.0 * std::pow(40.0, std::fmod(t, 4.0) / 4.0);
+                    sweepPhase += juce::MathConstants<double>::twoPi * sweepFrequency / sampleRate;
+                    const float sweep = 0.1f * (float) std::sin(sweepPhase);
 
-                const float swell = 0.55f + 0.45f * (float) std::sin(juce::MathConstants<double>::twoPi * t / 8.0);
+                    const float swell = 0.55f + 0.45f * (float) std::sin(juce::MathConstants<double>::twoPi * t / 8.0);
 
-                // A burst of noise for 30 ms in every 5 s
-                const float click = std::fmod(t, 5.0) < 0.03 ? 0.8f * (random.nextFloat() * 2.f - 1.f) : 0.f;
+                    // A burst of noise for 30 ms in every 5 s
+                    const float click = std::fmod(t, 5.0) < 0.03 ? 0.8f * (random.nextFloat() * 2.f - 1.f) : 0.f;
 
-                block.setSample(0, i, swell * (low + high + sweep) + click + 0.01f * (random.nextFloat() - 0.5f));
-                block.setSample(1, i, swell * (0.7f * (low - high) + sweep) + click + 0.01f * (random.nextFloat() - 0.5f));
+                    block.setSample(0, i, swell * (low + high + sweep) + click + 0.01f * (random.nextFloat() - 0.5f));
+                    block.setSample(1, i, swell * (0.7f * (low - high) + sweep) + click + 0.01f * (random.nextFloat() - 0.5f));
+                }
             }
 
             processor.processBlock(block, midi);

@@ -112,8 +112,10 @@ build/GriseySnapshot_artefacts/Release/GriseySnapshot editor.png 4
 The number picks the view (0 goniometer, 1 spectrum, 2 spectrogram, 3 history, 4 loudness).
 Parameters can be set by their IDs, for example `spectrumChannels=1`, and `size=1400x800` sets the
 size of the editor. `also=2,3` stops the audio and then saves those views as well, all of the same
-moment, which shows what each view recorded while it was hidden. The tool's window ignores the mouse, so that it cannot take a click that was
-meant for something else.
+moment, which shows what each view recorded while it was hidden. `audio=song.mp3` plays a file
+through the plugin in place of the test signal, and `from=30` starts it 30 s in, which is how the
+pictures on this page were made. The tool's window ignores the mouse, so that it cannot take a
+click that was meant for something else.
 
 ## The name, and version 1
 
