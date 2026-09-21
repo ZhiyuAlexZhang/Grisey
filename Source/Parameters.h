@@ -161,11 +161,18 @@ namespace Parameters
 
         juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
+        // The scale runs from half size to double on a logarithmic scale, so that 100% is in the middle of
+        // the knob's travel, and halving and doubling are the same turn. Version 1 gave this range a skew of 0.1, which put
+        // 50.0 to 50.1% on the first half of the knob and everything else on the last tenth of it. The
+        // saved state holds the value itself, not the position of the knob, so old sessions are unaffected.
+        const juce::NormalisableRange<float> scaleRange(50.f, 200.f,
+            [](float low, float high, float position) { return low * std::pow(high / low, position); },
+            [](float low, float high, float value)    { return std::log(value / low) / std::log(high / low); },
+            [](float low, float high, float value)    { return juce::jlimit(low, high, std::round(value)); });
+
         // Version hint 1 marks the parameter from version 1, and 2 the ones added in 2.0
         layout.add(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { ID::goniometerScale, 1 },
-            "Goniometer Scale",
-            juce::NormalisableRange<float>(50.f, 200.f, 1.f, 0.1f),
-            100.f));
+            "Goniometer Scale", scaleRange, 100.f));
 
         layout.add(std::make_unique<Choice>(juce::ParameterID { ID::decayRate, 2 }, "Tick Decay", decayRateNames, 0, display));
         layout.add(std::make_unique<Choice>(juce::ParameterID { ID::holdTime, 2 }, "Tick Hold", holdTimeNames, 2, display));

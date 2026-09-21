@@ -360,6 +360,22 @@ struct ProcessorTests : juce::UnitTest
             expectEquals((int) processor.sampleRingBuffer.getTotalWritten(), 1 + 64 + 512 + 4096 + 100000);
         }
 
+        beginTest("The goniometer's scale has 100% in the middle of its knob");
+        {
+            GriseyAudioProcessor processor;
+            auto* scale = processor.apvts.getParameter(Parameters::ID::goniometerScale);
+
+            expectWithinAbsoluteError(scale->convertTo0to1(100.f), 0.5f, 0.001f);
+            expectWithinAbsoluteError(scale->convertFrom0to1(0.f), 50.f, 0.001f);
+            expectWithinAbsoluteError(scale->convertFrom0to1(1.f), 200.f, 0.001f);
+
+            // Every part of the travel changes the value: a quarter turn either side of the
+            // middle is about 71% and 141%, which are the same ratio down and up
+            expectWithinAbsoluteError(scale->convertFrom0to1(0.25f), 71.f, 2.f);
+            expectWithinAbsoluteError(scale->convertFrom0to1(0.75f), 141.f, 3.f);
+            expectEquals(scale->getDefaultValue(), 0.5f);
+        }
+
         beginTest("Settings survive a save and a load");
         {
             GriseyAudioProcessor saved;
