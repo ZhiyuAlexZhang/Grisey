@@ -125,7 +125,8 @@ void LoudnessView::paintReadouts(juce::Graphics& g, juce::Rectangle<int> area)
         { "SHORT TERM", format(readings.shortTerm, hasShortTerm), "LUFS", false },
         { "MOMENTARY", format(readings.momentary, isLoudness(readings.momentary)), "LUFS", false },
         { "RANGE", format(readings.range, isLoudness(readings.rangeLow)), "LU", false },
-        { "TRUE PEAK", format(maxTruePeak, hasTruePeak), "dBTP", hasTruePeak && maxTruePeak > truePeakLimitDb },
+        // A true peak keeps its sign, because whether it is over or under full scale is the point of it
+        { "TRUE PEAK", Theme::formatDb(hasTruePeak ? maxTruePeak : -2000.f, -1000.f), "dBTP", hasTruePeak && maxTruePeak > truePeakLimitDb },
         { "PLR", format(maxTruePeak - readings.integrated, hasTruePeak && hasIntegrated), "LU", false },
         { "PSR", format(recentTruePeak - readings.shortTerm, recentTruePeak > -150.f && hasShortTerm), "LU", false },
     };
