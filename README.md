@@ -1,8 +1,8 @@
 # Grisey
 
-Grisey is a free, open-source metering suite for mixing and mastering: level, loudness, true peak, spectrum, spectrogram, stereo image, and phase correlation, all in one resizable window. It sets out to be state of the art, the kind of metering that you would expect to pay for, measured to the published standards (ITU-R BS.1770 and EBU R 128) and tested against them, and free for everyone.
+Grisey is a free, open-source metering suite for mixing and mastering: level, loudness, true peak, spectrum, spectrogram, stereo image, and phase correlation, all in one resizable window. It aims to be state of the art, the kind of metering you'd expect to pay for. Its measurements follow the published standards (ITU-R BS.1770 and EBU R 128) and are tested against them, and it's free for everyone.
 
-It is made for the community, and made to be learned from. The measurement code is kept apart from the interface, written to be read, and covered by tests, and the [roadmap](ROADMAP.md) records why things are built the way they are, with the measurements behind each decision. If you want to know how a loudness meter, a true peak detector, or a spectrum analyzer really works, the source is there to show you. Questions, ideas, and pull requests are welcome.
+Grisey is built for the community, and it's built to be learned from. The measurement code is kept apart from the interface so that it's easy to read, and it's covered by tests. The [roadmap](ROADMAP.md) records why things are built the way they are, along with the measurements behind each decision. If you've ever wondered how a loudness meter or a true peak detector actually works, the source is there to show you. Questions and ideas are welcome, and so are pull requests.
 
 It runs as a VST3, AU, or CLAP plugin, or as a standalone app, on macOS and Windows.
 
