@@ -1,8 +1,8 @@
 /*
   ==============================================================================
 
-    This file contains the basic framework code for a JUCE plugin editor.
-    This project is built with JUCE version 9.
+    The editor of the plugin: a header with a tab for each view, the view itself,
+    a column of meters that is always showing, and a bar of controls for the view.
 
   ==============================================================================
 */
@@ -11,16 +11,18 @@
 
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
-#include "Histogram/Histogram.h"
-#include "GonioMeter/Goniometer.h"
-#include "SpectrumAnalyzer/SpectrumAnalyzer.h"
-#include "Spectrogram/Spectrogram.h"
-#include "LoudnessView/LoudnessView.h"
-#include "LevelMeter/LevelMeter.h"
-#include "CorrelationMeter/CorrelationMeter.h"
-#include "Controls/Buttons.h"
-#include "Controls/OptionsRow.h"
-#include "Controls/Slider.h"
+#include "UI/Theme.h"
+#include "UI/LookAndFeel.h"
+#include "UI/Controls.h"
+#include "UI/ControlBar.h"
+#include "Views/SpectrumSource.h"
+#include "Views/GoniometerView.h"
+#include "Views/SpectrumView.h"
+#include "Views/SpectrogramView.h"
+#include "Views/HistoryView.h"
+#include "Views/LoudnessView.h"
+#include "Views/LevelMeters.h"
+#include "Views/LoudnessSummary.h"
 
 //==============================================================================
 class MultiMeterAudioProcessorEditor  : public juce::AudioProcessorEditor
@@ -30,22 +32,21 @@ public:
     ~MultiMeterAudioProcessorEditor() override;
 
     void paint(juce::Graphics&) override;
-
     void resized() override;
 
-    StereoMeter peakMeter{"PEAK"}, RMSMeter{"RMS"};
-    Histogram peakHistogram{"PEAK"}, rmsHistogram{"RMS"};
-
 private:
-    // The meters are updated at this rate whatever the refresh rate of the display is,
-    // so that the histograms scroll and the averages settle at the same speed everywhere
-    static constexpr double updateRateHz = 60.0;
+    static constexpr int defaultWidth = 1000, defaultHeight = 580;
+    static constexpr int minWidth = 860, minHeight = 480;
+    static constexpr int maxWidth = 2600, maxHeight = 1600;
 
     // The readings count as silence when no audio has arrived for this long, which is
     // what happens when the host stops calling the processor
     static constexpr double silenceTimeoutSeconds = 0.25;
 
-    // Called before every frame that the display presents, with the time of that frame in seconds
+    // Called before every frame that the display presents, with the time of that frame in seconds.
+    // It updates the meters at the refresh rate that the user has chosen, and skips the frames in
+    // between. Updates that are in step with the display were measured to cost less than a timer at
+    // the same rate. The meters move by the time that has passed, so they behave the same at any rate.
     void vBlank(double timestampSeconds);
 
     // Reads the measurements made on the audio thread and updates every meter
@@ -54,60 +55,47 @@ private:
     // Shows the view that the main view parameter selects
     void showMainView(int viewId);
 
-    // Lays out the histograms according to the histogram view parameter
-    void layoutHistograms(int histogramViewId);
+    // Fills the menu of the settings that the meters of the side column share
+    void buildMeterSettingsMenu(juce::PopupMenu& menu);
 
     // The current value of a parameter: as it is, as the index of a choice, or as a switch
     float getValue(const juce::String& parameterID) const;
     int getChoice(const juce::String& parameterID) const;
     bool isOn(const juce::String& parameterID) const;
 
-    // Adds a label with its text, in the color that all the labels share
-    void addLabel(juce::Label& label, const juce::String& text);
-
     // This reference is provided as a quick way for your editor to access the processor object that created it
     MultiMeterAudioProcessor& audioProcessor;
-    Goniometer gonioMeter;
-    CorrelationMeter correlationMeter;
 
-    // The analyzer and the spectrogram draw the same spectra
+    MultiMeterLookAndFeel lookAndFeel;
+    TabBar tabs;
+
+    // The views, of which one is showing. The spectrum and the spectrogram draw the same spectra.
     SpectrumSource spectrumSource;
-    SpectrumAnalyzer spectrumAnalyzer;
-    Spectrogram spectrogram;
+    GoniometerView goniometerView;
+    SpectrumView spectrumView;
+    SpectrogramView spectrogramView;
+    HistoryView historyView;
     LoudnessView loudnessView;
 
-    // The controls of the view that is showing
-    OptionsRow optionsRow;
+    // The side column, which is always showing
+    LevelMeters levelMeters;
+    LoudnessSummary loudnessSummary;
+    CorrelationBar correlationBar;
+
+    // The bottom bar
+    ControlBar controlBar;
+    SettingsButton meterSettingsButton { "Meters" };
     juce::Button* freezeButton = nullptr;
 
-    ButtonsLook lookAndFeel;
-    SwitchButton menuViewSwitch;
+    juce::ParameterAttachment mainViewAttachment;
 
-    // All combobox controls are defined here
-    juce::ComboBox levelMeterDecaySelector, averagerDurationSelector, holdTimeSelector;
-    Switch tickDisplay{ "Hide Tick","Show Tick" }, resetHold{"Reset Hold","Reset Hold"};
+    // Whether the constructor has finished, before which a change of size is not the user's
+    bool isConstructed = false;
 
-    ToggleChain histogramViewButton, meterViewButton;
+    // Set by the reset items of the menus, and cleared by the next update
+    bool resetTicksRequested = false;
 
-    juce::Label levelMeterDecayLabel, averagerDurationLabel, meterViewLabel, holdTimeLabel, histogramViewLabel, tickDisplayLabel, correlationLabel0, correlationLabel1, correlationLabel2, scaleKnobLabel;
-
-    // Define bounds for side by side and stacked histogram positions
-    juce::Rectangle<int> peakSBS, rmsSBS, peakStacked, rmsStacked;
-
-    RotarySliderWithLabels scaleKnobSlider;
-
-    // Every control is attached to its parameter, so the parameters hold all the settings
-    using APVTS = juce::AudioProcessorValueTreeState;
-    APVTS::SliderAttachment scaleKnobSliderAttachment;
-    // The combo box attachments are created once the boxes have their items
-    std::unique_ptr<APVTS::ComboBoxAttachment> levelMeterDecayAttachment, averagerDurationAttachment, holdTimeAttachment;
-    APVTS::ButtonAttachment tickDisplayAttachment;
-    juce::ParameterAttachment mainViewAttachment, meterViewAttachment, histogramViewAttachment;
-
-    // Set by the reset hold button, and cleared by the next update
-    bool resetHoldRequested = false;
-
-    // Timing of the updates
+    // Timing of the updates, in seconds
     double lastUpdateTime = -1.0;
     double lastAudioTime = 0.0;
     juce::uint64 lastTotalWritten = 0;

@@ -18,7 +18,6 @@ namespace Parameters
         inline const juce::String holdTime { "holdTime" };
         inline const juce::String averagerDuration { "averagerDuration" };
         inline const juce::String meterView { "meterView" };
-        inline const juce::String histogramView { "histogramView" };
         inline const juce::String showTick { "showTick" };
         inline const juce::String mainView { "mainView" };
         inline const juce::String goniometerMode { "goniometerMode" };
@@ -29,6 +28,7 @@ namespace Parameters
         inline const juce::String spectrumResolution { "spectrumResolution" };
         inline const juce::String spectrumPeakHold { "spectrumPeakHold" };
         inline const juce::String loudnessTarget { "loudnessTarget" };
+        inline const juce::String refreshRate { "refreshRate" };
     }
 
     // The options of each choice parameter, and the values that they stand for
@@ -41,17 +41,23 @@ namespace Parameters
     inline const juce::StringArray averagerDurationNames { "100ms", "250ms", "500ms", "1000ms", "2000ms" };
     inline constexpr std::array<float, 5> averagerDurationsSeconds { 0.1f, 0.25f, 0.5f, 1.f, 2.f };
 
-    inline const juce::StringArray meterViewNames { "Both", "Peak", "Avg" };
-    inline const juce::StringArray histogramViewNames { "Parallel", "Stacked" };
-    inline const juce::StringArray mainViewNames { "Goniometer", "Analyzer", "Spectrogram", "Histogram", "Loudness" };
+    inline const juce::StringArray meterViewNames { "Peak + RMS", "Peak", "RMS" };
+    inline const juce::StringArray mainViewNames { "Goniometer", "Spectrum", "Spectrogram", "History", "Loudness" };
+
+    enum MeterView
+    {
+        peakAndRmsMeters,
+        peakMeters,
+        rmsMeters
+    };
 
     enum MainView
     {
-        goniometerView,
-        analyzerView,
-        spectrogramView,
-        histogramView,
-        loudnessView
+        viewGoniometer,
+        viewSpectrum,
+        viewSpectrogram,
+        viewHistory,
+        viewLoudness
     };
 
     // The options of the views are named so that a combo box needs no label beside it
@@ -81,6 +87,11 @@ namespace Parameters
     inline const juce::StringArray loudnessTargetNames { "No target", "-14 LUFS Streaming", "-16 LUFS Podcast", "-23 LUFS EBU R 128", "-24 LKFS ATSC A/85" };
     inline constexpr std::array<float, 5> loudnessTargetsLufs { 0.f, -14.f, -16.f, -23.f, -24.f };
 
+    // How often the editor redraws. On macOS every frame costs a flush of the whole window, whatever
+    // is drawn in it, so the frame rate is what decides how much of the CPU the editor takes.
+    inline const juce::StringArray refreshRateNames { "30 frames per second", "60 frames per second" };
+    inline constexpr std::array<int, 2> refreshRatesHz { 30, 60 };
+
     // Looks up the value of a choice parameter, whatever index it is given
     template<typename Table>
     auto valueAt(const Table& table, int index)
@@ -101,7 +112,7 @@ namespace Parameters
     struct LegacyState
     {
         float goniometerScale = 100.f;
-        int decayRate = 0, holdTime = 2, averagerDuration = 0, meterView = 0, histogramView = 0;
+        int decayRate = 0, holdTime = 2, averagerDuration = 0, meterView = 0;
         bool showTick = true;
     };
 
@@ -122,7 +133,7 @@ namespace Parameters
         const bool tick = stream.readBool();
         const int averagerId = stream.readInt();
         const int meterViewId = stream.readInt();
-        const int histogramViewId = stream.readInt();
+        stream.readInt(); // how the two histograms were laid out, which the one history graph has no use for
 
         // Version 1 could save uninitialized values, so anything out of range
         // falls back to the default, as its editor did. The combo box IDs
@@ -134,7 +145,6 @@ namespace Parameters
         state.holdTime = inRange(holdId, 1, 6) ? holdId - 1 : 2;
         state.averagerDuration = inRange(averagerId, 1, 5) ? averagerId - 1 : 0;
         state.meterView = inRange(meterViewId, 0, 2) ? meterViewId : 0;
-        state.histogramView = inRange(histogramViewId, 0, 1) ? histogramViewId : 0;
         state.showTick = tick;
         return true;
     }
@@ -153,25 +163,25 @@ namespace Parameters
             juce::NormalisableRange<float>(50.f, 200.f, 1.f, 0.1f),
             100.f));
 
-        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::decayRate, 2 }, "Level Meter Decay", decayRateNames, 0, display));
-        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::holdTime, 2 }, "Tick Hold Duration", holdTimeNames, 2, display));
-        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::averagerDuration, 2 }, "Averager Duration", averagerDurationNames, 0, display));
-        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::meterView, 2 }, "Level Meter Display", meterViewNames, 0, display));
-        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::histogramView, 2 }, "Histogram Display", histogramViewNames, 0, display));
-        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::mainView, 2 }, "View", mainViewNames, analyzerView, display));
+        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::decayRate, 2 }, "Tick Decay", decayRateNames, 0, display));
+        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::holdTime, 2 }, "Tick Hold", holdTimeNames, 2, display));
+        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::averagerDuration, 2 }, "Correlation Time", averagerDurationNames, 0, display));
+        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::meterView, 2 }, "Level Meters", meterViewNames, 0, display));
+        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::mainView, 2 }, "View", mainViewNames, viewSpectrum, display));
 
         layout.add(std::make_unique<Choice>(juce::ParameterID { ID::goniometerMode, 2 }, "Goniometer Mode", goniometerModeNames, lissajousMode, display));
         layout.add(std::make_unique<Choice>(juce::ParameterID { ID::goniometerPersistence, 2 }, "Goniometer Persistence", goniometerPersistenceNames, 1, display));
-        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::spectrumChannels, 2 }, "Analyzer Channels", spectrumChannelsNames, 0, display));
-        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::spectrumTilt, 2 }, "Analyzer Tilt", spectrumTiltNames, 2, display));
-        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::spectrumSmoothing, 2 }, "Analyzer Smoothing", spectrumSmoothingNames, 2, display));
-        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::spectrumResolution, 2 }, "Analyzer Resolution", spectrumResolutionNames, 1, display));
+        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::spectrumChannels, 2 }, "Spectrum Channels", spectrumChannelsNames, 0, display));
+        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::spectrumTilt, 2 }, "Spectrum Tilt", spectrumTiltNames, 2, display));
+        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::spectrumSmoothing, 2 }, "Spectrum Smoothing", spectrumSmoothingNames, 2, display));
+        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::spectrumResolution, 2 }, "Spectrum Resolution", spectrumResolutionNames, 1, display));
         layout.add(std::make_unique<Choice>(juce::ParameterID { ID::loudnessTarget, 2 }, "Loudness Target", loudnessTargetNames, 1, display));
+        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::refreshRate, 2 }, "Refresh Rate", refreshRateNames, 0, display));
 
-        layout.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID { ID::spectrumPeakHold, 2 }, "Analyzer Peak Hold", false,
+        layout.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID { ID::spectrumPeakHold, 2 }, "Spectrum Peak Hold", false,
             juce::AudioParameterBoolAttributes().withAutomatable(false)));
 
-        layout.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID { ID::showTick, 2 }, "Tick Display", true,
+        layout.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID { ID::showTick, 2 }, "Ticks", true,
             juce::AudioParameterBoolAttributes().withAutomatable(false)));
 
         return layout;

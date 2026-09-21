@@ -368,7 +368,6 @@ struct ProcessorTests : juce::UnitTest
             setValue(saved, Parameters::ID::holdTime, 5.f);
             setValue(saved, Parameters::ID::averagerDuration, 4.f);
             setValue(saved, Parameters::ID::meterView, 2.f);
-            setValue(saved, Parameters::ID::histogramView, 1.f);
             setValue(saved, Parameters::ID::mainView, 0.f);
             setValue(saved, Parameters::ID::showTick, 0.f);
 
@@ -383,7 +382,6 @@ struct ProcessorTests : juce::UnitTest
             expectEquals(getValue(loaded, Parameters::ID::holdTime), 5.f);
             expectEquals(getValue(loaded, Parameters::ID::averagerDuration), 4.f);
             expectEquals(getValue(loaded, Parameters::ID::meterView), 2.f);
-            expectEquals(getValue(loaded, Parameters::ID::histogramView), 1.f);
             expectEquals(getValue(loaded, Parameters::ID::mainView), 0.f);
             expectEquals(getValue(loaded, Parameters::ID::showTick), 0.f);
         }
@@ -425,7 +423,6 @@ struct ProcessorTests : juce::UnitTest
             expectEquals(getValue(processor, Parameters::ID::showTick), 0.f);
             expectEquals(getValue(processor, Parameters::ID::averagerDuration), 2.f);
             expectEquals(getValue(processor, Parameters::ID::meterView), 1.f);
-            expectEquals(getValue(processor, Parameters::ID::histogramView), 1.f);
         }
 
         beginTest("A version 1 session with uninitialized values falls back to the defaults");
@@ -450,7 +447,6 @@ struct ProcessorTests : juce::UnitTest
             expectEquals(getValue(processor, Parameters::ID::holdTime), 2.f);
             expectEquals(getValue(processor, Parameters::ID::averagerDuration), 0.f);
             expectEquals(getValue(processor, Parameters::ID::meterView), 0.f);
-            expectEquals(getValue(processor, Parameters::ID::histogramView), 0.f);
         }
 
         beginTest("Unreadable state is ignored");

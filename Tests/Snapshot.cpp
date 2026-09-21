@@ -8,7 +8,8 @@
 //   MultiMeterSnapshot <output.png> [view] [seconds] [parameterID=value ...]
 //
 // The views are 0 goniometer, 1 analyzer, 2 spectrogram, 3 histogram and 4 loudness.
-// Any parameter can be set by its ID, for example spectrumChannels=1 or goniometerMode=1.
+// Any parameter can be set by its ID, for example spectrumChannels=1 or goniometerMode=1,
+// and size=1400x800 sets the size of the editor.
 //
 // The test signal is a 440 Hz tone, a quieter 3 kHz tone that is out of phase between
 // the channels, a tone that sweeps up from 200 Hz to 8 kHz every 4 s, and a little noise.
@@ -37,20 +38,32 @@ int main(int argc, char* argv[])
     if (auto* parameter = processor.apvts.getParameter(Parameters::ID::mainView))
         parameter->setValueNotifyingHost(parameter->convertTo0to1((float) view));
 
+    juce::String size;
+
     for (int i = 4; i < argc; ++i)
     {
         const auto argument = juce::String(argv[i]);
         const auto id = argument.upToFirstOccurrenceOf("=", false, false);
 
-        if (auto* parameter = processor.apvts.getParameter(id))
+        if (id == "size")
+            size = argument.fromFirstOccurrenceOf("=", false, false);
+        else if (auto* parameter = processor.apvts.getParameter(id))
             parameter->setValueNotifyingHost(parameter->convertTo0to1(argument.fromFirstOccurrenceOf("=", false, false).getFloatValue()));
         else
             std::cout << "There is no parameter called " << id << std::endl;
     }
 
-    std::unique_ptr<juce::AudioProcessorEditor> editor(processor.createEditorAndMakeActive());
-    editor->addToDesktop(0);
-    editor->setVisible(true);
+    // View -1 runs the signal without an editor, which shows how much of the CPU time is the tool's own
+    std::unique_ptr<juce::AudioProcessorEditor> editor;
+    if (view >= 0)
+    {
+        editor.reset(processor.createEditorAndMakeActive());
+        editor->addToDesktop(0);
+        editor->setVisible(true);
+
+        if (size.isNotEmpty())
+            editor->setSize(size.upToFirstOccurrenceOf("x", false, false).getIntValue(), size.fromFirstOccurrenceOf("x", false, false).getIntValue());
+    }
 
     // Stands in for the host's audio thread, and delivers blocks in real time
     std::atomic<bool> running { true };
@@ -89,17 +102,24 @@ int main(int argc, char* argv[])
     // Let the editor run for a while, then take the picture
     juce::Timer::callAfterDelay((int) (seconds * 1000.0), [&]
     {
-        const auto image = editor->createComponentSnapshot(editor->getLocalBounds(), true, 2.f);
+        if (editor != nullptr)
+        {
+            const auto image = editor->createComponentSnapshot(editor->getLocalBounds(), true, 2.f);
 
-        output.deleteFile();
-        juce::FileOutputStream stream(output);
-        if (stream.openedOk())
-            juce::PNGImageFormat().writeImageToStream(image, stream);
+            output.deleteFile();
+            juce::FileOutputStream stream(output);
+            if (stream.openedOk())
+                juce::PNGImageFormat().writeImageToStream(image, stream);
+        }
 
         juce::MessageManager::getInstance()->stopDispatchLoop();
     });
 
-    juce::MessageManager::getInstance()->runDispatchLoop();
+    // Without a window there is nothing for the message loop to wait on
+    if (editor != nullptr)
+        juce::MessageManager::getInstance()->runDispatchLoop();
+    else
+        std::this_thread::sleep_for(std::chrono::duration<double>(seconds));
 
     running.store(false);
     audioThread.join();

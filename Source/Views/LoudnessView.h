@@ -1,15 +1,16 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include "../Constants.h"
+#include "../UI/Theme.h"
 #include "../Engine/LoudnessMeter.h"
 
 //==============================================================================
 // Shows the readings of the LoudnessMeter and the TruePeakDetector as numbers, beside a
 // history of the short-term and the momentary loudness. The readings themselves are made
 // on the audio thread, this component only displays them.
-struct LoudnessView : juce::Component
+class LoudnessView : public juce::Component
 {
+public:
     // The history holds a point for every 100 ms, which is how often the loudness changes
     static constexpr double historyIntervalSeconds = 0.1;
     static constexpr int historyLength = 600;
@@ -25,7 +26,7 @@ struct LoudnessView : juce::Component
 
     void paint(juce::Graphics& g) override;
 
-    // Updates the display, called by the editor once per frame.
+    // Records the readings, called by the editor once per frame, whichever view is showing.
     //  - truePeakDb:    the higher channel's true peak since the last update
     //  - maxTruePeakDb: the higher channel's true peak since the last reset
     //  - targetLufs:    the loudness to aim for, or 0 for none
@@ -50,7 +51,7 @@ private:
     float getReferenceLufs() const;
 
     LoudnessMeter::Readings readings;
-    float maxTruePeak = NEGATIVE_INFINITY;
+    float maxTruePeak = -200.f;
     float target = 0.f;
 
     // The peak to short-term loudness ratio needs the true peak of the same 3 s as the short-term loudness.
@@ -59,9 +60,14 @@ private:
     std::array<float, 30> recentTruePeaks;
     size_t recentTruePeakIndex = 0;
     double secondsInTruePeakSlot = 0.0;
-    float recentTruePeak = NEGATIVE_INFINITY;
+    float recentTruePeak = -200.f;
 
     std::array<HistoryPoint, historyLength> history;
     int historyIndex = 0;
     double secondsSinceHistoryPoint = 0.0;
+
+    // The view is drawn again ten times a second, which is how often its readings change
+    double secondsSinceRepaint = 0.0;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LoudnessView)
 };

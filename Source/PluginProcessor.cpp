@@ -263,7 +263,6 @@ void MultiMeterAudioProcessor::applyLegacyState(const Parameters::LegacyState& s
     set(Parameters::ID::holdTime, static_cast<float>(state.holdTime));
     set(Parameters::ID::averagerDuration, static_cast<float>(state.averagerDuration));
     set(Parameters::ID::meterView, static_cast<float>(state.meterView));
-    set(Parameters::ID::histogramView, static_cast<float>(state.histogramView));
     set(Parameters::ID::showTick, state.showTick ? 1.f : 0.f);
 }
 

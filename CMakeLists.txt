@@ -37,14 +37,13 @@ juce_generate_juce_header(MultiMeter)
 target_sources(MultiMeter PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
-    Source/Controls/Slider.cpp
-    Source/CorrelationMeter/CorrelationMeter.cpp
-    Source/GonioMeter/Goniometer.cpp
-    Source/Histogram/Histogram.cpp
-    Source/LevelMeter/LevelMeter.cpp
-    Source/LoudnessView/LoudnessView.cpp
-    Source/Spectrogram/Spectrogram.cpp
-    Source/SpectrumAnalyzer/SpectrumAnalyzer.cpp)
+    Source/Views/GoniometerView.cpp
+    Source/Views/HistoryView.cpp
+    Source/Views/LevelMeters.cpp
+    Source/Views/LoudnessSummary.cpp
+    Source/Views/LoudnessView.cpp
+    Source/Views/SpectrogramView.cpp
+    Source/Views/SpectrumView.cpp)
 
 target_compile_definitions(MultiMeter PUBLIC
     JUCE_WEB_BROWSER=0
