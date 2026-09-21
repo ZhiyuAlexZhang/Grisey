@@ -1,0 +1,89 @@
+name: Release
+
+# Pushing a tag such as v2.0.0 builds the plugins for macOS and Windows and attaches them to a
+# DRAFT release, which is only public once it has been looked over and published by hand.
+# A tag with a hyphen in it, such as v2.0.0-beta.1, is marked as a pre-release.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - name: macOS
+            os: macos-latest
+          - name: Windows
+            os: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # The default on macOS is a universal binary, for both Apple Silicon and Intel
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel 4
+
+      - name: Unit tests
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      # ditto keeps the bundles' symbolic links and signatures, which zip does not
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p "package/MultiMeter ${{ github.ref_name }}"
+          cd build/MultiMeter_artefacts/Release
+          cp -R VST3/MultiMeter.vst3 AU/MultiMeter.component CLAP/MultiMeter.clap Standalone/MultiMeter.app "$GITHUB_WORKSPACE/package/MultiMeter ${{ github.ref_name }}/"
+          cd "$GITHUB_WORKSPACE"
+          cp LICENSE.md README.md "package/MultiMeter ${{ github.ref_name }}/"
+          ditto -c -k --keepParent "package/MultiMeter ${{ github.ref_name }}" "MultiMeter-${{ github.ref_name }}-macOS.zip"
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $folder = "package/MultiMeter ${{ github.ref_name }}"
+          New-Item -ItemType Directory -Force -Path $folder | Out-Null
+          Copy-Item -Recurse build/MultiMeter_artefacts/Release/VST3/MultiMeter.vst3 $folder
+          Copy-Item build/MultiMeter_artefacts/Release/CLAP/MultiMeter.clap $folder
+          Copy-Item build/MultiMeter_artefacts/Release/Standalone/MultiMeter.exe $folder
+          Copy-Item LICENSE.md, README.md $folder
+          Compress-Archive -Path $folder -DestinationPath "MultiMeter-${{ github.ref_name }}-Windows.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MultiMeter-${{ matrix.name }}
+          path: MultiMeter-${{ github.ref_name }}-${{ matrix.name }}.zip
+          if-no-files-found: error
+
+  release:
+    name: Draft release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          case "${{ github.ref_name }}" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "${{ github.ref_name }}" --repo "${{ github.repository }}" \
+            --draft $prerelease --generate-notes --title "MultiMeter ${{ github.ref_name }}" \
+            MultiMeter-*.zip

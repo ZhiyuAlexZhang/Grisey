@@ -4,7 +4,11 @@
 
 MultiMeter, a cutting-edge AU/VST3/CLAP audio analyzer, caters to audio engineers, producers, and musicians who seek precision and versatility. Leveraging the JUCE framework, MultiMeter delivers a robust array of features for pristine real-time audio analysis, enhancing mixing, mastering, and sound design processes.
 
-![multimeter-demo](https://github.com/RealAlexZ/MultiMeter/assets/97690118/ce64ecb6-801e-4e9d-8815-1f97655c272d)
+![The spectrum view](docs/images/spectrum.png)
+
+| Goniometer | Loudness | Spectrogram |
+| --- | --- | --- |
+| ![The goniometer view](docs/images/goniometer.png) | ![The loudness view](docs/images/loudness.png) | ![The spectrogram view](docs/images/spectrogram.png) |
 
 ## Features
 
@@ -36,9 +40,29 @@ MultiMeter, a cutting-edge AU/VST3/CLAP audio analyzer, caters to audio engineer
 - The peak and RMS levels over the last half minute.
 
 ### Interface, formats and settings
-- A resizable interface in the style of FabFilter's plugins, which redraws at 30 or 60 frames per second.
+- A resizable interface inspired by FabFilter's plugins, which redraws at 30 or 60 frames per second.
 - VST3, AU, CLAP, and Standalone. Mono and stereo.
 - Every setting is saved with the session, and sessions saved by version 1 still load.
+
+## Installing
+
+Download the zip for your system from the [releases page](https://github.com/RealAlexZ/MultiMeter/releases), and copy what you need:
+
+| | macOS | Windows |
+| --- | --- | --- |
+| VST3 | `~/Library/Audio/Plug-Ins/VST3` | `C:\Program Files\Common Files\VST3` |
+| AU | `~/Library/Audio/Plug-Ins/Components` | |
+| CLAP | `~/Library/Audio/Plug-Ins/CLAP` | `C:\Program Files\Common Files\CLAP` |
+
+The builds are not signed or notarized, so macOS will refuse to load them until you clear the
+quarantine flag that it puts on downloads. After copying, run this for each plugin you installed:
+
+```bash
+xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/MultiMeter.vst3
+```
+
+On Windows, SmartScreen may warn about the standalone app; choose "More info", then "Run anyway".
+If you would rather not run unsigned builds, build from source as described below.
 
 ## Building
 
@@ -76,6 +100,15 @@ meant for something else.
 ## Roadmap
 
 Version 2.0 is in progress. See [ROADMAP.md](ROADMAP.md) for the plan.
+
+## Licence and credits
+
+MultiMeter is free software under the GPLv3 (see [LICENSE.md](LICENSE.md)). It is built with
+[JUCE](https://juce.com), used under the AGPLv3, and
+[clap-juce-extensions](https://github.com/free-audio/clap-juce-extensions).
+
+The look of the interface is inspired by FabFilter's plugins. MultiMeter is an independent project:
+it is not made, endorsed, or supported by FabFilter, and it uses none of their artwork or code.
 
 ## Dependencies
 - **JUCE:** 9.0.2

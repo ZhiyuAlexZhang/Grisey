@@ -78,9 +78,21 @@ namespace Theme
        #endif
     }
 
+    // What each of those typefaces calls its heavier weight
+    inline juce::String boldStyleName()
+    {
+       #if JUCE_MAC
+        return "Demi Bold";
+       #elif JUCE_WINDOWS
+        return "Semibold";
+       #else
+        return "Bold";
+       #endif
+    }
+
     inline juce::Font font(float height, bool bold = false)
     {
-        return juce::Font(juce::FontOptions(typefaceName(), height, juce::Font::plain).withStyle(bold ? "Demi Bold" : "Regular"));
+        return juce::Font(juce::FontOptions(typefaceName(), height, juce::Font::plain).withStyle(bold ? boldStyleName() : juce::String("Regular")));
     }
 
     // Small capitals with a little space between the letters, for the names of things

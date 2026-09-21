@@ -78,7 +78,7 @@
   <FILTER uid="18" x="0.42" y="0.6711538461538461" uiLastX_Normal="193"
           uiLastY_Normal="39" uiopen_Normal="0">
     <PLUGIN name="MultiMeter" format="VST3" category="Fx" manufacturer="Yulania"
-            version="1.0.0" file="/Users/zhiyuzhang/Desktop/MultiMeter-Development/Builds/MacOSX/build/Debug/MultiMeter.vst3"
+            version="1.0.0" file="/Users/zhiyuzhang/Library/Audio/Plug-Ins/VST3/MultiMeter.vst3"
             uniqueId="f2a4d4ec" isInstrument="0" fileTime="18d6a7a4877" infoUpdateTime="18dcd414843"
             numInputs="2" numOutputs="2" isShell="0" uid="acf52f30"/>
     <STATE>225.VMjLgfM....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOVMEUy.Ea0cVZtMEcgQWY9vSRC8Vav8lak4Fc9fSMt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKJUELPUTPqI1aYcEV5UkQQcVTWgkKDAkKBs1QhcVSxHlKDAkKC4BTG4hKt3hKt3hKt3FUUMTUDQEdqw1XmE0UYQTQFM1YAwyKIMzasA2atUlaz4COuX0TTMCTrU2Yo41TzEFck4C.</STATE>
