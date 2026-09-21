@@ -68,9 +68,9 @@ costs about 0.15% of one core at 48 kHz.
       and all of the version 1 interface code
 - [x] The look follows the design language of FabFilter's plugins, studied from a Figma recreation
       of Pro-R and a screenshot of Pro-MB: charcoal chrome whose raised parts meet the recessed
-      ones in S-shaped shoulders, a display that runs from black to a deep purple, a thin grey
-      grid, a yellow curve for the main signal and a blue one for the second with flat translucent
-      fills, knobs with a blue ring, a dotted scale and a white lens for a pointer, floating panels
+      ones in S-shaped shoulders, a display that runs from black to a dark, faintly purple grey, a
+      thin grey grid, a yellow curve for the main signal and a blue one for the second, knobs with
+      a blue ring, a dotted scale and a white lens for a pointer, floating panels
       with a light edge, and bars that read "Label: value". It copies no artwork, and uses the
       system's humanist typefaces (Avenir Next, Segoe UI) where FabFilter uses Frutiger.
 - [x] One large resizable display (860x480 to 2600x1600, remembered with the session), a header of
@@ -108,13 +108,58 @@ costs about 0.15% of one core at 48 kHz.
       tried first and read a full-scale tone 6.8 dB high, because a tone stands 100 dB above the
       bins beside it. The trails are drawn at a third of the resolution, which brought the view
       back to what it cost before (14% of a core at 30 frames per second).
+- [x] The colors, after measuring those of a picture of Pro-R 2 rather than judging them by eye:
+      - A curve carries its color in its line, with a wide, faint stroke beneath it for a bloom.
+        What is under it is only its light, brightest under the top of the curve and gone a little
+        more than half way down the plot. Whole areas had been filled flat, and large areas of
+        flat color look heavy: the history was a slab of blue and the loudness graph a brown block.
+      - The olive of the spectrum was not the yellow, whose hue is the same as FabFilter's amber.
+        It was the blue light of the second curve under the yellow light of the first, so only the
+        first curve has a light beneath it.
+      - FabFilter's blue is a steel blue (#22648d to #6289a2), where ours was a sky blue. One
+        function in `Theme.h` makes the scale of colors for the level bars, the history and the
+        loudness bars, which turn yellow at the target and red 6 LU above it.
+      - The spectrogram showed 90 dB from a bright blue to a bright yellow, which lit even what
+        was quiet and made a grey green of everything in between. It shows 66 dB, keeps what is
+        quiet dark with a power of 1.5, and goes from black through a hint of the meters' blue to
+        amber, yellow and a warm white. The blue meets the amber while both are dark. It records
+        512 rows, and the scrolling images are drawn with smoothing.
+- [x] One Reset button, beside Meters in the bar with every view, starts every measurement again:
+      the loudness and the true peak, the timeline in all three views, the spectrum's peak hold,
+      and the ticks. Nothing is cleared by a click on a graph, where a click meant for something
+      else could throw a minute away. This is what the manuals of Pro-L 2, Insight 2 and Youlean
+      Loudness Meter describe. A click on the level bars still resets their ticks, as a click on
+      a peak reading does everywhere. What the history shows is a setting in its own bar.
+- [x] Each loudness reading is in one place. The loudness view had a panel of numbers of which
+      four were also in the side column, and the two took their readings on clocks of their own,
+      so they could differ by a tenth. The editor now decides when a readout is due for every
+      number at once, and the view shows only what is its own (momentary, PLR, PSR) above a graph
+      that has the full width and reaches from 0 to -48 LUFS whatever the target is.
+- [x] The menus have the look of the interface. A popup menu takes its look and feel only from
+      what it is given itself, not from the component that opens it, so every menu had come up in
+      JUCE's own colors. They are drawn in the manner of FabFilter's: rows close together, a solid
+      blue bar under the mouse, the current choice in yellow with a dot, and a space between groups.
+- [x] The tabs are in order of use: the spectrum, which opens first, then the spectrogram beside
+      it, then the three views of the timeline with the loudness first, and the goniometer last.
+      The values of the parameter did not change, so saved sessions open on the view they had.
+- [x] The name in the header is an outline of Snell Roundhand Bold (`Source/UI/Wordmark.h`, written
+      by the snapshot tool), so that it is the same on a computer without the typeface, set into
+      the surface with a flourish on either side. The maker's name is to its left on the same line,
+      in a place that does not depend on the product's letters, so that other plugins of the
+      maker's can have it in the same place. The tab starts at the edge of the window and is as
+      wide as the line in it.
 - [ ] Try everything that a picture cannot show, by hand: the menus, the tabs, the readouts under
       the mouse, dragging the knob and the corner of the window, and the reset buttons
 - [ ] The spectrogram and the history have one image column per slot of the timeline, stretched
       over the plot, so they are a little soft on a high-resolution display
+- [ ] From the manuals of other meters: resetting when the host starts playback, one pause for all
+      three views of the timeline, and readouts under the mouse on the history and the loudness
 
 ## Phase 4: Release
 
 - [ ] Signed and notarized macOS installer, and a Windows installer
-- [ ] New README, screenshots, and demo
+- [x] New README and screenshots, taken with music by the snapshot tool
+- [x] A release workflow that builds both systems, signs the macOS bundles ad hoc as a whole, and
+      makes a draft pre-release (`v2.0.0-beta.1`)
+- [ ] A demo
 - [ ] Tag v2.0.0
