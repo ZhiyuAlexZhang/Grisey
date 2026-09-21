@@ -10,9 +10,13 @@ It runs as a VST3, AU, or CLAP plugin, or as a standalone app, on macOS and Wind
 
 ![The spectrum view](docs/images/spectrum.png)
 
-| Goniometer | Loudness | Spectrogram |
-| --- | --- | --- |
-| ![The goniometer view](docs/images/goniometer.png) | ![The loudness view](docs/images/loudness.png) | ![The spectrogram view](docs/images/spectrogram.png) |
+| Goniometer | Spectrogram |
+| --- | --- |
+| ![The goniometer view](docs/images/goniometer.png) | ![The spectrogram view](docs/images/spectrogram.png) |
+| **History** | **Loudness** |
+| ![The history view](docs/images/history.png) | ![The loudness view](docs/images/loudness.png) |
+
+The spectrogram, the history and the loudness above are pictures of the same half minute of a song, its intro and the moment the full mix comes in, because the three views share one timeline.
 
 ## Features
 
