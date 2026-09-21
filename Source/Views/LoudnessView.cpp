@@ -76,12 +76,6 @@ void LoudnessView::setSpan(float seconds)
     }
 }
 
-float LoudnessView::getReferenceLufs() const
-{
-    // Without a target the scale sits where it would for EBU R 128
-    return target < 0.f ? target : -23.f;
-}
-
 void LoudnessView::paintHeader(juce::Graphics& g, juce::Rectangle<int> area)
 {
     // The header ends where the plot does, short of the labels of the scale
@@ -154,15 +148,14 @@ void LoudnessView::paintHeader(juce::Graphics& g, juce::Rectangle<int> area)
 
 void LoudnessView::paintHistory(juce::Graphics& g, juce::Rectangle<int> area)
 {
-    const float reference = getReferenceLufs();
-    const float top = reference + rangeAboveTarget, bottom = reference - rangeBelowTarget;
+    const float top = maxLufs, bottom = minLufs;
 
     auto plot = area.withTrimmedRight(scaleWidth).withTrimmedBottom(18).toFloat();
     auto yOf = [&](float lufs) { return juce::jmap(juce::jlimit(bottom, top, lufs), bottom, top, plot.getBottom(), plot.getY()); };
 
-    // Draw a grid line every 9 LU, and label the levels down the right
+    // Draw a grid line every 6 LU, and label the levels down the right
     g.setFont(Theme::font(10.5f));
-    for (float lufs = bottom; lufs <= top + 0.01f; lufs += 9.f)
+    for (float lufs = bottom; lufs <= top + 0.01f; lufs += gridStepLu)
     {
         const float y = yOf(lufs);
         g.setColour(Theme::grid);

@@ -14,9 +14,12 @@
 class LoudnessView : public juce::Component
 {
 public:
-    // The graph reaches from 27 LU below the target to 9 LU above it, like the EBU +9 scale
-    static constexpr float rangeBelowTarget = 27.f;
-    static constexpr float rangeAboveTarget = 9.f;
+    // The graph reaches from full scale down, whatever the target is. It used to reach from 9 LU above
+    // the target, like the EBU +9 scale, which a loud master went off the top of: with a target of -14
+    // the top was -5, and the momentary loudness of a modern master goes above that.
+    static constexpr float maxLufs = 0.f;
+    static constexpr float minLufs = -48.f;
+    static constexpr float gridStepLu = 6.f;
 
     LoudnessView();
 
@@ -50,9 +53,6 @@ private:
 
     // The room to the right of the plot for the labels of its scale
     static constexpr int scaleWidth = 34;
-
-    // The loudness at the middle of the graph's scale
-    float getReferenceLufs() const;
 
     LoudnessMeter::Readings readings;
     float maxTruePeak = -200.f;
