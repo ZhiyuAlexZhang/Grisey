@@ -9,6 +9,7 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "UI/Wordmark.h"
 
 namespace
 {
@@ -45,6 +46,8 @@ GriseyAudioProcessorEditor::GriseyAudioProcessorEditor(GriseyAudioProcessor& p) 
 
     setLookAndFeel(&lookAndFeel);
     setOpaque(true);
+
+    wordmarkOutline = juce::Drawable::parseSVGPath(Wordmark::outline);
 
     // The tabs change between the views
     addAndMakeVisible(tabs);
@@ -135,6 +138,7 @@ namespace
     // The widths of the raised tab that holds the name, and of the shoulders on either side of it
     constexpr float nameTabStart = 6.f;
     constexpr float nameTabWidth = 132.f;
+    constexpr float wordmarkHeight = 31.f;
     constexpr float shoulderWidth = 46.f;
 
     // The thickness of the raised edge that runs along the rest of the chrome
@@ -182,10 +186,15 @@ void GriseyAudioProcessorEditor::paintHeader(juce::Graphics& g, juce::Rectangle<
     g.setColour(Theme::edge);
     g.fillRect(bounds.withTop(bounds.getBottom() - 1.f));
 
-    // The name of the plugin
-    g.setFont(Theme::font(16.f));
-    g.setColour(Theme::wordmark);
-    g.drawText("Grisey", area.withX(juce::roundToInt(tabLeft)).withWidth(juce::roundToInt(nameTabWidth)).translated(0, 1), juce::Justification::centred);
+    // The name of the plugin is an outline, not text, so that it is drawn the same on a computer that
+    // does not have its typeface. It is a silver that is a little lighter at the top than at the bottom.
+    const auto nameArea = juce::Rectangle<float>(tabLeft, bounds.getY(), nameTabWidth, bounds.getHeight()).reduced(4.f, 0.f)
+                              .withSizeKeepingCentre(nameTabWidth - 8.f, wordmarkHeight).translated(0.f, 0.5f);
+    const auto placement = juce::RectanglePlacement(juce::RectanglePlacement::centred)
+                               .getTransformToFit({ 0.f, 0.f, Wordmark::width, Wordmark::height }, nameArea);
+
+    g.setGradientFill(juce::ColourGradient(Theme::wordmarkTop, 0.f, nameArea.getY(), Theme::wordmarkBottom, 0.f, nameArea.getBottom(), false));
+    g.fillPath(wordmarkOutline, placement);
 }
 
 void GriseyAudioProcessorEditor::paintBottomBar(juce::Graphics& g, juce::Rectangle<int> area)

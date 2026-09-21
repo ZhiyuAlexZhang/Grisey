@@ -74,6 +74,9 @@ private:
     GriseyLookAndFeel lookAndFeel;
     TabBar tabs;
 
+    // The outline of the name in the header, read once from UI/Wordmark.h
+    juce::Path wordmarkOutline;
+
     // The views, of which one is showing. The spectrum and the spectrogram draw the same spectra.
     SpectrumSource spectrumSource;
     GoniometerView goniometerView;

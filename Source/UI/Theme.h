@@ -41,7 +41,8 @@ namespace Theme
     inline const juce::Colour textDim { 0xff868587 };
     inline const juce::Colour textFaint { 0xff58565c };
     inline const juce::Colour knobLabel { 0xffb9bdc0 };
-    inline const juce::Colour wordmark { 0xfff0e0e0 };  // the name of the plugin in the header
+    inline const juce::Colour wordmarkTop { 0xfffbf3f3 };     // the name of the plugin in the header is a silver,
+    inline const juce::Colour wordmarkBottom { 0xffc9bdc0 };  // lighter at the top than at the bottom
 
     // Signal
     inline const juce::Colour accent { 0xffffc435 };   // yellow: the left or mid channel, and anything that is "the signal"

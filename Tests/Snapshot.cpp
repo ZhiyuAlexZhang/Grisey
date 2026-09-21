@@ -94,6 +94,93 @@ namespace
     }
 }
 
+namespace
+{
+    // Writes the name as outlines, so that it looks the same on a computer that does not have the typeface:
+    // an SVG for the README, and the same outline as a header for the plugin.
+    //   GriseySnapshot docs/images/wordmark.svg wordmark "Snell Roundhand" Bold Source/UI/Wordmark.h
+    bool writeWordmark(const juce::File& svgFile, const juce::String& typeface, const juce::String& style, const juce::File& headerFile)
+    {
+        if (! juce::Font::findAllTypefaceNames().contains(typeface))
+        {
+            std::cout << "This computer does not have " << typeface << std::endl;
+            return false;
+        }
+
+        // Large, so that two decimal places are plenty
+        const juce::Font font(juce::FontOptions(typeface, 200.f, juce::Font::plain).withStyle(style));
+        juce::GlyphArrangement glyphs;
+        glyphs.addLineOfText(font, "Grisey", 0.f, 0.f);
+
+        juce::Path outline;
+        glyphs.createPath(outline);
+
+        const auto bounds = outline.getBounds();
+        outline.applyTransform(juce::AffineTransform::translation(-bounds.getX(), -bounds.getY()));
+
+        auto number = [](float value) { return juce::String(value, 2).trimCharactersAtEnd("0").trimCharactersAtEnd("."); };
+
+        juce::String data;
+        juce::Path::Iterator segment(outline);
+        while (segment.next())
+        {
+            switch (segment.elementType)
+            {
+                case juce::Path::Iterator::startNewSubPath: data << "M" << number(segment.x1) << " " << number(segment.y1); break;
+                case juce::Path::Iterator::lineTo:          data << "L" << number(segment.x1) << " " << number(segment.y1); break;
+                case juce::Path::Iterator::quadraticTo:     data << "Q" << number(segment.x1) << " " << number(segment.y1) << " " << number(segment.x2) << " " << number(segment.y2); break;
+                case juce::Path::Iterator::cubicTo:         data << "C" << number(segment.x1) << " " << number(segment.y1) << " " << number(segment.x2) << " " << number(segment.y2)
+                                                                 << " " << number(segment.x3) << " " << number(segment.y3); break;
+                case juce::Path::Iterator::closePath:       data << "Z"; break;
+            }
+        }
+
+        const auto width = number(bounds.getWidth()), height = number(bounds.getHeight());
+
+        juce::String svg;
+        // The name is silver, so it stands on a dark plate, or it could not be seen on a white page
+        const float margin = 70.f;
+        const auto plateWidth = number(bounds.getWidth() + 2.f * margin), plateHeight = number(bounds.getHeight() + 2.f * margin);
+
+        svg << "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 " << plateWidth << " " << plateHeight << "\" role=\"img\" aria-label=\"Grisey\">\n"
+            << "  <defs>\n"
+            << "    <linearGradient id=\"silver\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">\n"
+            << "      <stop offset=\"0\" stop-color=\"#fbf3f3\"/>\n"
+            << "      <stop offset=\"1\" stop-color=\"#c9bdc0\"/>\n"
+            << "    </linearGradient>\n"
+            << "    <linearGradient id=\"plate\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">\n"
+            << "      <stop offset=\"0\" stop-color=\"#201d22\"/>\n"
+            << "      <stop offset=\"1\" stop-color=\"#353238\"/>\n"
+            << "    </linearGradient>\n"
+            << "  </defs>\n"
+            << "  <rect width=\"" << plateWidth << "\" height=\"" << plateHeight << "\" rx=\"44\" fill=\"url(#plate)\"/>\n"
+            << "  <path transform=\"translate(" << number(margin) << " " << number(margin) << ")\" fill=\"url(#silver)\" d=\"" << data << "\"/>\n"
+            << "</svg>\n";
+
+        svgFile.replaceWithText(svg, false, false, "\n");
+
+        // A string literal has a limit in some compilers, so the outline is written as many short ones
+        juce::String header;
+        header << "#pragma once\n\n"
+               << "// The name of the plugin as an outline, so that it is drawn the same on every computer, whether or not\n"
+               << "// it has the typeface. Written by: GriseySnapshot docs/images/wordmark.svg wordmark \"" << typeface << "\" " << style << " Source/UI/Wordmark.h\n"
+               << "// The outline is the data of an SVG path, " << width << " wide and " << height << " high, from the top left.\n"
+               << "namespace Wordmark\n{\n"
+               << "    inline constexpr float width = " << width << "f;\n"
+               << "    inline constexpr float height = " << height << "f;\n\n"
+               << "    inline constexpr const char* outline =\n";
+
+        for (int start = 0; start < data.length(); start += 110)
+            header << "        \"" << data.substring(start, start + 110) << "\"\n";
+
+        header = header.dropLastCharacters(1) + ";\n}\n";
+        headerFile.replaceWithText(header, false, false, "\n");
+
+        std::cout << "Saved " << svgFile.getFullPathName() << " and " << headerFile.getFullPathName() << " (" << data.length() << " characters of outline)" << std::endl;
+        return true;
+    }
+}
+
 int main(int argc, char* argv[])
 {
     if (argc < 2)
@@ -107,6 +194,12 @@ int main(int argc, char* argv[])
     const double seconds = argc > 3 ? juce::String(argv[3]).getDoubleValue() : 2.0;
 
     juce::ScopedJuceInitialiser_GUI juceInit;
+
+    if (argc > 5 && juce::String(argv[2]) == "wordmark")
+    {
+        const auto cwd = juce::File::getCurrentWorkingDirectory();
+        return writeWordmark(output, argv[3], argv[4], cwd.getChildFile(juce::String(argv[5]))) ? 0 : 1;
+    }
 
     if (argc > 2 && juce::String(argv[2]) == "menu")
     {

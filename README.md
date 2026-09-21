@@ -1,4 +1,4 @@
-# Grisey
+<h1 align="center"><img src="docs/images/wordmark.svg" alt="Grisey" width="300"></h1>
 
 Grisey is a free, open-source metering suite for mixing and mastering: level, loudness, true peak, spectrum, spectrogram, stereo image, and phase correlation, all in one resizable window. It aims to be state of the art, the kind of metering you'd expect to pay for. Its measurements follow the published standards (ITU-R BS.1770 and EBU R 128) and are tested against them, and it's free for everyone.
 
@@ -133,6 +133,9 @@ Up to version 1 it was called MultiMeter. Hosts know a plugin by its codes rathe
 Grisey is free software under the GPLv3 (see [LICENSE.md](LICENSE.md)). It is built with
 [JUCE](https://juce.com) 9, used under the AGPLv3, and
 [clap-juce-extensions](https://github.com/free-audio/clap-juce-extensions).
+
+The name in the header is set in Snell Roundhand, and drawn as an outline (`Source/UI/Wordmark.h`,
+`docs/images/wordmark.svg`), so that it looks the same on a computer that does not have the typeface.
 
 The look of the interface is inspired by FabFilter's plugins. Grisey is an independent project:
 it is not made, endorsed, or supported by FabFilter, and it uses none of their artwork or code.
