@@ -15,7 +15,7 @@ public:
         setColour(juce::PopupMenu::textColourId, Theme::text);
         setColour(juce::PopupMenu::headerTextColourId, Theme::textDim);
         setColour(juce::PopupMenu::highlightedBackgroundColourId, Theme::menuHighlight);
-        setColour(juce::PopupMenu::highlightedTextColourId, juce::Colours::white);
+        setColour(juce::PopupMenu::highlightedTextColourId, Theme::accent);
         setColour(juce::ResizableWindow::backgroundColourId, Theme::window);
     }
 
@@ -24,42 +24,65 @@ public:
     void drawPopupMenuBackground(juce::Graphics& g, int width, int height) override
     {
         g.fillAll(Theme::menu);
-        g.setColour(Theme::gridStrong);
+        g.setColour(Theme::panelEdge);
         g.drawRect(0, 0, width, height, 1);
     }
 
-    // A knob whose value is an arc around it, with a pointer on the cap
+    // A dark knob inside a blue ring, with a ring of dots for its scale, and a white lens at its rim for its pointer
     void drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height, float position,
                           float startAngle, float endAngle, juce::Slider& slider) override
     {
-        const auto bounds = juce::Rectangle<int>(x, y, width, height).toFloat().reduced(4.f);
+        const auto bounds = juce::Rectangle<int>(x, y, width, height).toFloat().reduced(2.f);
         const float radius = 0.5f * juce::jmin(bounds.getWidth(), bounds.getHeight());
         const auto centre = bounds.getCentre();
         const float angle = startAngle + position * (endAngle - startAngle);
-        const float arcRadius = radius - 2.f;
 
-        juce::Path track, value;
-        track.addCentredArc(centre.x, centre.y, arcRadius, arcRadius, 0.f, startAngle, endAngle, true);
-        value.addCentredArc(centre.x, centre.y, arcRadius, arcRadius, 0.f, startAngle, angle, true);
+        // The dots of the scale, lit up to the value
+        const int numDots = 11;
+        for (int dot = 0; dot < numDots; ++dot)
+        {
+            const float proportion = (float)dot / (float)(numDots - 1);
+            const auto point = centre.getPointOnCircumference(radius - 1.5f, startAngle + proportion * (endAngle - startAngle));
+            g.setColour(proportion <= position + 0.001f && slider.isEnabled() ? Theme::second : Theme::secondDeep);
+            g.fillEllipse(juce::Rectangle<float>(2.6f, 2.6f).withCentre(point));
+        }
 
-        const auto stroke = juce::PathStrokeType(3.f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded);
-        g.setColour(Theme::gridStrong);
-        g.strokePath(track, stroke);
-        g.setColour(slider.isEnabled() ? Theme::accent : Theme::textFaint);
-        g.strokePath(value, stroke);
+        // The ring, and the body within it, which is lit from above
+        const float ringRadius = radius - 7.f;
+        const float bodyRadius = ringRadius - 2.5f;
+        const auto body = juce::Rectangle<float>(2.f * bodyRadius, 2.f * bodyRadius).withCentre(centre);
 
-        // The cap is lit from above
-        const float capRadius = radius - 8.f;
-        g.setGradientFill(juce::ColourGradient(juce::Colour(0xff2c3548), centre.x, centre.y - capRadius,
-                                               juce::Colour(0xff171c28), centre.x, centre.y + capRadius, false));
-        g.fillEllipse(juce::Rectangle<float>(2.f * capRadius, 2.f * capRadius).withCentre(centre));
-        g.setColour(juce::Colour(0xff3a455c));
-        g.drawEllipse(juce::Rectangle<float>(2.f * capRadius, 2.f * capRadius).withCentre(centre), 1.f);
+        g.setColour(Theme::secondDeep);
+        g.drawEllipse(juce::Rectangle<float>(2.f * ringRadius, 2.f * ringRadius).withCentre(centre), 2.f);
 
-        juce::Path pointer;
-        pointer.addRoundedRectangle(-1.25f, -capRadius + 3.f, 2.5f, capRadius * 0.45f, 1.25f);
-        g.setColour(Theme::text);
-        g.fillPath(pointer, juce::AffineTransform::rotation(angle).translated(centre));
+        g.setGradientFill(juce::ColourGradient(juce::Colour(0xff2c2d3c), centre.x, body.getY(), juce::Colour(0xff171d35), centre.x, body.getBottom(), false));
+        g.fillEllipse(body);
+        g.setColour(juce::Colour(0xff131116));
+        g.drawEllipse(body, 1.f);
+
+        // The pointer is an ellipse that the edge of the body cuts into a lens
+        {
+            juce::Graphics::ScopedSaveState state(g);
+
+            juce::Path bodyShape;
+            bodyShape.addEllipse(body.reduced(1.f));
+            g.reduceClipRegion(bodyShape);
+
+            const auto toAngle = juce::AffineTransform::rotation(angle, centre.x, centre.y);
+            const auto lensCentre = juce::Point<float>(centre.x, centre.y - bodyRadius * 0.82f);
+
+            juce::Path lens;
+            lens.addEllipse(juce::Rectangle<float>(bodyRadius * 0.84f, bodyRadius * 0.9f).withCentre(lensCentre));
+
+            const auto lit = lensCentre.transformedBy(toAngle);
+            g.setGradientFill(juce::ColourGradient(juce::Colours::white, lit.x, lit.y, juce::Colour(0xffbfbfbf), lit.x + bodyRadius * 0.5f, lit.y + bodyRadius * 0.5f, true));
+            g.fillPath(lens, toAngle);
+
+            juce::Path tick;
+            tick.addRoundedRectangle(centre.x - 0.75f, centre.y - bodyRadius * 0.86f, 1.5f, bodyRadius * 0.24f, 0.75f);
+            g.setColour(juce::Colour(0xff131016));
+            g.fillPath(tick, toAngle);
+        }
     }
 
     void drawCornerResizer(juce::Graphics& g, int width, int height, bool, bool isMouseOver) override

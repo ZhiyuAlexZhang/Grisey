@@ -4,52 +4,114 @@
 
 //==============================================================================
 // Every color, font and measurement of the interface is here, so that the look
-// can be changed in one place. The palette is dark, with one accent color for
-// the signal, a warm color for what is held, and red for what is over.
+// can be changed in one place.
+//
+// The look follows the design language of FabFilter's plugins: charcoal chrome with
+// sculpted edges around a display that is almost black, a yellow curve for the main
+// signal and a blue one for the second, thin grey grids, and light humanist type
+// with grey labels in front of pale values.
 namespace Theme
 {
-    // Surfaces
-    inline const juce::Colour window { 0xff12161f };      // the header, the bottom bar, and the gaps between displays
-    inline const juce::Colour windowLight { 0xff1a2030 }; // the top of the header's gradient
-    inline const juce::Colour display { 0xff0b0e14 };     // the wells that the displays sit in
-    inline const juce::Colour track { 0xff161b26 };       // the unlit part of a meter
-    inline const juce::Colour grid { 0xff1c2330 };
-    inline const juce::Colour gridStrong { 0xff2a3344 };
-    inline const juce::Colour menu { 0xff1a2030 };
-    inline const juce::Colour menuHighlight { 0xff26304a };
+    // Chrome: the header and the bottom bar
+    inline const juce::Colour chromeTop { 0xff201d22 };      // the raised parts run from this at the top
+    inline const juce::Colour chromeBottom { 0xff353238 };   // to this at the bottom
+    inline const juce::Colour chromeInsetTop { 0xff1c1a20 }; // the recessed strip that holds the tabs
+    inline const juce::Colour chromeInsetBottom { 0xff070709 };
+    inline const juce::Colour footerTop { 0xff1c1b1e };
+    inline const juce::Colour footerBottom { 0xff19161e };
+    inline const juce::Colour edge { 0xff2a292d };           // the hairlines around the chrome and between displays
+    inline const juce::Colour window { 0xff000000 };         // what shows in the gaps between the displays
 
-    // Text
-    inline const juce::Colour text { 0xffd4dbe6 };
-    inline const juce::Colour textDim { 0xff7f8a9c };
-    inline const juce::Colour textFaint { 0xff4a5567 };
+    // Displays
+    inline const juce::Colour displayTop { 0xff000000 };     // a display runs from black at the top
+    inline const juce::Colour displayBottom { 0xff0b0614 };  // to a deep purple at the bottom
+    inline const juce::Colour display { 0xff05030a };        // one color for where a gradient cannot be used
+    inline const juce::Colour track { 0xff17151c };          // the unlit part of a meter
+    inline const juce::Colour grid { 0xff201f22 };
+    inline const juce::Colour gridStrong { 0xff2f2e30 };
+
+    // Floating panels and menus
+    inline const juce::Colour panel { 0xff1d1b22 };
+    inline const juce::Colour panelEdge { 0xff45424b };
+    inline const juce::Colour menu { 0xff1d1b22 };
+    inline const juce::Colour menuHighlight { 0xff34313a };
+
+    // Text: grey labels in front of pale values
+    inline const juce::Colour text { 0xffd1d1d2 };
+    inline const juce::Colour textDim { 0xff868587 };
+    inline const juce::Colour textFaint { 0xff58565c };
+    inline const juce::Colour knobLabel { 0xffb9bdc0 };
 
     // Signal
-    inline const juce::Colour accent { 0xff4cc2ff };   // the left or mid channel, and anything that is "the signal"
-    inline const juce::Colour second { 0xffc59bff };   // the right or side channel
-    inline const juce::Colour held { 0xffffc857 };     // peak holds, ticks and targets
-    inline const juce::Colour good { 0xff6fdc8c };
-    inline const juce::Colour over { 0xffff5c5c };     // clipping, true peaks over the limit, and out of phase
+    inline const juce::Colour accent { 0xffffc435 };   // yellow: the left or mid channel, and anything that is "the signal"
+    inline const juce::Colour second { 0xff3f9fdc };   // blue: the right or side channel
+    inline const juce::Colour secondDeep { 0xff154767 }; // the deep blue of a knob's ring
+    inline const juce::Colour held { 0xffffffff };     // peak holds and ticks
+    inline const juce::Colour target { 0xff59fb18 };   // what to aim for
+    inline const juce::Colour good { 0xff59fb18 };
+    inline const juce::Colour over { 0xffdb5031 };     // clipping, true peaks over the limit, and out of phase
+
+    // How strongly a curve is filled beneath its line. The second curve usually lies over the first,
+    // as left and right do, so its fill is faint, or the two would mix into a muddy color.
+    inline constexpr float accentFillAlpha = 0.20f;
+    inline constexpr float secondFillAlpha = 0.07f;
+    inline constexpr float curveThickness = 2.f;
 
     // Measurements in pixels
-    inline constexpr int headerHeight = 36;
-    inline constexpr int bottomBarHeight = 30;
+    inline constexpr int headerHeight = 38;
+    inline constexpr int bottomBarHeight = 26;
     inline constexpr int sideColumnWidth = 214;
     inline constexpr int gap = 1;
 
     // The readouts that are numbers change no more often than this, because faster cannot be read
     inline constexpr double readoutIntervalSeconds = 0.1;
 
-    inline juce::Font font(float height, bool bold = false)
+    // A light humanist sans-serif, from what each system has
+    inline juce::String typefaceName()
     {
-        return juce::Font(juce::FontOptions().withHeight(height).withStyle(bold ? "Bold" : "Regular"));
+       #if JUCE_MAC
+        return "Avenir Next";
+       #elif JUCE_WINDOWS
+        return "Segoe UI";
+       #else
+        return juce::Font::getDefaultSansSerifFontName();
+       #endif
     }
 
-    inline juce::Font labelFont()   { return font(11.f); }
+    inline juce::Font font(float height, bool bold = false)
+    {
+        return juce::Font(juce::FontOptions(typefaceName(), height, juce::Font::plain).withStyle(bold ? "Demi Bold" : "Regular"));
+    }
+
+    // Small capitals with a little space between the letters, for the names of things
+    inline juce::Font labelFont()   { return font(10.5f, true).withExtraKerningFactor(0.06f); }
     inline juce::Font controlFont() { return font(12.5f); }
 
     inline int textWidth(const juce::Font& f, const juce::String& t)
     {
         return juce::GlyphArrangement::getStringWidthInt(f, t);
+    }
+
+    // Fills a display with its background, which is given the height of the whole display
+    // so that views that draw it in parts stay in step
+    inline void fillDisplay(juce::Graphics& g, juce::Rectangle<int> bounds)
+    {
+        g.setGradientFill(juce::ColourGradient(displayTop, 0.f, (float)bounds.getY() + 0.25f * (float)bounds.getHeight(),
+                                               displayBottom, 0.f, (float)bounds.getBottom(), false));
+        g.fillRect(bounds);
+    }
+
+    // Draws a floating panel: dark and rounded, with a lighter edge and a soft shadow under it
+    inline void drawPanel(juce::Graphics& g, juce::Rectangle<float> bounds, float alpha = 0.94f)
+    {
+        juce::Path outline;
+        outline.addRoundedRectangle(bounds, 6.f);
+
+        juce::DropShadow(juce::Colours::black.withAlpha(0.55f), 12, { 0, 4 }).drawForPath(g, outline);
+        g.setColour(panel.withAlpha(alpha));
+        g.fillPath(outline);
+        g.setColour(panelEdge);
+        g.strokePath(outline, juce::PathStrokeType(1.f));
     }
 
     // Formats a level in decibels with one decimal place, a true minus sign, and a dash for silence

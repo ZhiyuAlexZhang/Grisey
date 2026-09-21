@@ -54,6 +54,16 @@ public:
         return result;
     }
 
+    // The width that the controls of the current view take up, from the left
+    int getUsedWidth() const
+    {
+        int width = 0;
+        for (auto& item : items)
+            if ((item->viewMask & (1 << currentView)) != 0)
+                width += item->width;
+        return width;
+    }
+
     // Shows the controls of a view, and hides the rest
     void showView(int viewId)
     {

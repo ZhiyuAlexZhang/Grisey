@@ -31,8 +31,12 @@ private:
     juce::Rectangle<int> plot;
     ScrollingImage image;
 
-    // The colors of a column from the top down: within the RMS shape, within the peak shape, and outside both
-    std::vector<juce::Colour> rmsColours, peakColours;
+    // The colors of a column from the top down: within the RMS shape, within the peak shape, and outside
+    // both, where it is the background of the display, which is not the same color all the way down
+    std::vector<juce::Colour> rmsColours, peakColours, backgroundColours;
+
+    // Fills the image with the background of the display
+    void clearImage();
 
     // A column covers more than one update, so it shows the highest levels of its time
     double secondsInColumn = 0.0;

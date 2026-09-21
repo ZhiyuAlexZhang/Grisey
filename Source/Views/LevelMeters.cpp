@@ -39,15 +39,16 @@ void LevelMeters::resized()
     for (size_t channel = 0; channel < 2; ++channel)
         readoutAreas[channel] = channelBars[channel].toNearestInt().withY(readoutRow.getY()).withHeight(readoutRow.getHeight()).expanded(1, 0);
 
-    // Blue through the working range, warm as the level nears full scale, and red above it
+    // Blue through the working range, yellow as the level nears full scale, and red above it
     auto proportionOf = [](float decibels) { return (double)juce::jmap(decibels, minDb, maxDb, 0.f, 1.f); };
 
-    levelGradient = juce::ColourGradient(Theme::accent.darker(0.5f), 0.f, (float)barsArea.getBottom(), Theme::over, 0.f, (float)barsArea.getY(), false);
-    levelGradient.addColour(proportionOf(-18.f), Theme::accent);
-    levelGradient.addColour(proportionOf(-6.f), Theme::held);
+    levelGradient = juce::ColourGradient(Theme::secondDeep, 0.f, (float)barsArea.getBottom(), Theme::over, 0.f, (float)barsArea.getY(), false);
+    levelGradient.addColour(proportionOf(-24.f), Theme::second);
+    levelGradient.addColour(proportionOf(-6.f), Theme::accent);
     levelGradient.addColour(proportionOf(0.f), Theme::over);
 
-    loudnessGradient = juce::ColourGradient(Theme::second.darker(0.6f), 0.f, (float)barsArea.getBottom(), Theme::second.brighter(0.2f), 0.f, (float)barsArea.getY(), false);
+    // The loudness bars are in the yellow of the signal
+    loudnessGradient = juce::ColourGradient(Theme::accent.darker(0.75f), 0.f, (float)barsArea.getBottom(), Theme::accent, 0.f, (float)barsArea.getY(), false);
 
     staticLayer.invalidate();
 }
@@ -139,7 +140,7 @@ void LevelMeters::paint(juce::Graphics& g)
     {
         paintChannel(g, channels[i], channelBars[i]);
 
-        g.setFont(Theme::labelFont());
+        g.setFont(Theme::font(11.f));
         g.setColour(channels[i].highest > 0.f ? Theme::over : Theme::text);
         g.drawText(readouts[i], readoutAreas[i], juce::Justification::centred);
     }
@@ -157,7 +158,7 @@ void LevelMeters::paint(juce::Graphics& g)
     {
         // A notch on either side of the bars marks the target
         const float y = yOf(shown.targetLufs);
-        g.setColour(Theme::held);
+        g.setColour(Theme::target);
         g.fillRect(loudnessSpan.getX() - 5.f, y - 0.5f, 4.f, 1.5f);
         g.fillRect(loudnessSpan.getRight() + 1.f, y - 0.5f, 4.f, 1.5f);
     }
@@ -201,7 +202,7 @@ void LevelMeters::paintChannel(juce::Graphics& g, const Channel& channel, juce::
 
 void LevelMeters::paintStaticLayer(juce::Graphics& g)
 {
-    g.fillAll(Theme::display);
+    Theme::fillDisplay(g, getLocalBounds());
 
     // The unlit bars
     g.setColour(Theme::track);
@@ -213,7 +214,7 @@ void LevelMeters::paintStaticLayer(juce::Graphics& g)
     // The scale runs between the channels and the loudness bars
     const auto scaleArea = juce::Rectangle<float>(channelBars[1].getRight(), (float)barsArea.getY(), momentaryBar.getX() - channelBars[1].getRight(), (float)barsArea.getHeight());
 
-    g.setFont(Theme::labelFont());
+    g.setFont(Theme::font(10.5f));
     for (int decibels = 0; decibels >= (int)minDb; decibels -= 6)
     {
         const float y = yOf((float)decibels);

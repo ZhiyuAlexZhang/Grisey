@@ -58,7 +58,9 @@ int main(int argc, char* argv[])
     if (view >= 0)
     {
         editor.reset(processor.createEditorAndMakeActive());
-        editor->addToDesktop(0);
+        // The window appears wherever the user happens to be working, so it lets their clicks through
+        // to what is underneath, rather than taking them as clicks on its tabs
+        editor->addToDesktop(juce::ComponentPeer::windowIgnoresMouseClicks);
         editor->setVisible(true);
 
         if (size.isNotEmpty())

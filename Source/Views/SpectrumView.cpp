@@ -34,8 +34,8 @@ void SpectrumView::resized()
 
 void SpectrumView::paintGrid(juce::Graphics& g)
 {
-    g.fillAll(Theme::display);
-    g.setFont(Theme::labelFont());
+    Theme::fillDisplay(g, getLocalBounds());
+    g.setFont(Theme::font(10.5f));
 
     // A line for every first digit of the frequency, stronger at the decades
     for (double decade = 10.0; decade < maxFrequency; decade *= 10.0)
@@ -66,7 +66,8 @@ void SpectrumView::paintGrid(juce::Graphics& g)
         g.setColour(decibels == 0 ? Theme::gridStrong : Theme::grid);
         g.fillRect((float)plot.getX(), y, (float)plot.getWidth(), 1.f);
 
-        g.setColour(decibels == 0 ? Theme::textDim : Theme::textFaint);
+        // The scale of levels is in the color of the curve that it measures
+        g.setColour(Theme::accent.withAlpha(decibels == 0 ? 0.9f : 0.55f));
         g.drawText(juce::String(decibels), juce::Rectangle<float>((float)plot.getRight() + 4.f, y - 7.f, 28.f, 14.f), juce::Justification::centredLeft);
     }
 }
@@ -88,17 +89,17 @@ void SpectrumView::paint(juce::Graphics& g)
         {
             const auto i = (size_t)index;
 
-            // Fill the curve with a gradient that fades out towards the bottom
-            g.setGradientFill(juce::ColourGradient(colours[i].withAlpha(index == 0 ? 0.32f : 0.16f), 0.f, (float)plot.getY(),
-                                                   colours[i].withAlpha(0.f), 0.f, (float)plot.getBottom(), false));
+            // A flat, translucent fill beneath a solid line
+            g.setColour(colours[i].withAlpha(index == 0 ? Theme::accentFillAlpha : Theme::secondFillAlpha));
             g.fillPath(makePath(curves[i], true));
 
             g.setColour(colours[i]);
-            g.strokePath(makePath(curves[i], false), juce::PathStrokeType(1.3f));
+            g.strokePath(makePath(curves[i], false), juce::PathStrokeType(Theme::curveThickness, juce::PathStrokeType::curved));
 
+            // The peak hold is a thin, paler line of the same color
             if (settings.peakHold && peakHolds[i].size() == curves[i].size())
             {
-                g.setColour(index == 0 ? Theme::held : Theme::held.withAlpha(0.5f));
+                g.setColour(colours[i].brighter(0.6f).withAlpha(0.75f));
                 g.strokePath(makePath(peakHolds[i], false), juce::PathStrokeType(1.f));
             }
         }
@@ -113,7 +114,7 @@ void SpectrumView::paint(juce::Graphics& g)
 
     // Name the curves in their colors
     auto legend = plot.withTrimmedLeft(10).withTrimmedTop(6).removeFromTop(14);
-    g.setFont(Theme::font(11.5f, true));
+    g.setFont(Theme::labelFont());
     g.setColour(Theme::accent);
     g.drawText(settings.midSide ? "MID" : "LEFT", legend.removeFromLeft(settings.midSide ? 32 : 36), juce::Justification::centredLeft);
     g.setColour(Theme::second);
@@ -132,12 +133,16 @@ void SpectrumView::paintReadout(juce::Graphics& g)
     g.fillRect((float)position.x, (float)plot.getY(), 1.f, (float)plot.getHeight());
 
     // The level of the first curve at this frequency
-    const auto point = (size_t)juce::jlimit(0, (int)curves[0].size() - 1,
+    const auto index = (size_t)juce::jlimit(0, (int)curves[0].size() - 1,
         juce::roundToInt((float)(position.x - plot.getX()) / (float)juce::jmax(1, plot.getWidth()) * (float)(curves[0].size() - 1)));
-    const float level = curves[0][point];
+    const float level = curves[0][index];
 
+    // A point on the curve, bright with a dark outline
+    const auto point = juce::Rectangle<float>(10.f, 10.f).withCentre({ (float)position.x, yOf(juce::jmax(level, minDecibels)) });
     g.setColour(Theme::accent);
-    g.fillEllipse(juce::Rectangle<float>(7.f, 7.f).withCentre({ (float)position.x, yOf(juce::jmax(level, minDecibels)) }));
+    g.fillEllipse(point);
+    g.setColour(juce::Colour(0xff05020a).withAlpha(0.45f));
+    g.drawEllipse(point, 1.f);
 
     const auto text = Theme::formatFrequency(frequency) + "    " + Theme::formatNote(frequency) + "    " + Theme::formatDb(level, minDecibels) + " dB";
     const auto font = Theme::controlFont();
@@ -147,10 +152,7 @@ void SpectrumView::paintReadout(juce::Graphics& g)
     if (box.getRight() > plot.getRight())
         box.setX(position.x - 12 - box.getWidth());
 
-    g.setColour(Theme::menu.withAlpha(0.92f));
-    g.fillRoundedRectangle(box.toFloat(), 4.f);
-    g.setColour(Theme::gridStrong);
-    g.drawRoundedRectangle(box.toFloat(), 4.f, 1.f);
+    Theme::drawPanel(g, box.toFloat());
     g.setFont(font);
     g.setColour(Theme::text);
     g.drawText(text, box, juce::Justification::centred);
@@ -206,7 +208,7 @@ void SpectrumView::update(bool hasNewSpectra, const Settings& newSettings)
         {
             const float value = correlation[(size_t)point];
             const auto colour = std::isnan(value) ? juce::Colours::transparentBlack
-                : (value >= 0.f ? Theme::accent : Theme::over).withAlpha(std::abs(value));
+                : (value >= 0.f ? Theme::second : Theme::over).withAlpha(std::abs(value));
             pixels.setPixelColour(point, 0, colour);
         }
     }

@@ -35,7 +35,7 @@ void LoudnessSummary::update(const LoudnessMeter::Readings& readings, float maxT
 
 void LoudnessSummary::paint(juce::Graphics& g)
 {
-    g.fillAll(Theme::display);
+    g.fillAll(Theme::displayBottom);
 
     auto bounds = getLocalBounds().reduced(14, 8);
 
@@ -46,15 +46,16 @@ void LoudnessSummary::paint(juce::Graphics& g)
     g.drawText("INTEGRATED", top.removeFromTop(13), juce::Justification::centredLeft);
 
     auto numberRow = top;
-    g.setFont(Theme::font(28.f));
+    g.setFont(Theme::font(30.f));
     g.setColour(Theme::accent);
-    const int numberWidth = Theme::textWidth(Theme::font(28.f), integrated) + 6;
+    const int numberWidth = Theme::textWidth(Theme::font(30.f), integrated) + 6;
     g.drawText(integrated, numberRow.removeFromLeft(numberWidth), juce::Justification::centredLeft);
 
     g.setFont(Theme::labelFont());
     g.setColour(Theme::textDim);
     g.drawText("LUFS", numberRow.removeFromTop(numberRow.getHeight() / 2 + 4), juce::Justification::bottomLeft);
-    g.setColour(Theme::held);
+    g.setFont(Theme::font(11.f));
+    g.setColour(Theme::text);
     g.drawText(difference, numberRow.expanded(40, 0).withX(numberRow.getX()), juce::Justification::centredLeft);
 
     // The other readings share a small table
@@ -109,7 +110,7 @@ void CorrelationBar::update(float fastCorrelation, float slowCorrelation)
 
 void CorrelationBar::paint(juce::Graphics& g)
 {
-    g.fillAll(Theme::display);
+    g.fillAll(Theme::displayBottom);
 
     g.setFont(Theme::labelFont());
     g.setColour(Theme::textDim);
@@ -121,7 +122,7 @@ void CorrelationBar::paint(juce::Graphics& g)
     // The slow reading as a bar from the center
     const float centre = track.getCentreX();
     const float slowX = xOf(slow);
-    g.setColour(slow >= 0.f ? Theme::accent : Theme::over);
+    g.setColour(slow >= 0.f ? Theme::second : Theme::over);
     g.fillRect(juce::Rectangle<float>(juce::jmin(centre, slowX), track.getY(), std::abs(slowX - centre), track.getHeight()));
 
     // The fast reading as a line
@@ -132,7 +133,8 @@ void CorrelationBar::paint(juce::Graphics& g)
     g.fillRect(centre - 0.5f, track.getY() - 2.f, 1.f, track.getHeight() + 4.f);
 
     auto labels = track.toNearestInt().translated(0, 12).withHeight(14);
-    g.setColour(Theme::textFaint);
+    g.setFont(Theme::font(10.5f));
+    g.setColour(Theme::textDim);
     g.drawText(juce::String(juce::CharPointer_UTF8("\xe2\x88\x92")) + "1", labels, juce::Justification::centredLeft);
     g.drawText("0", labels, juce::Justification::centred);
     g.drawText("+1", labels, juce::Justification::centredRight);

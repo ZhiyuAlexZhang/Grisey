@@ -60,7 +60,6 @@ namespace Parameters
         viewLoudness
     };
 
-    // The options of the views are named so that a combo box needs no label beside it
     inline const juce::StringArray goniometerModeNames { "Lissajous", "Polar" };
 
     enum GoniometerMode
@@ -69,27 +68,27 @@ namespace Parameters
         polarMode
     };
 
-    inline const juce::StringArray goniometerPersistenceNames { "No persistence", "Short persistence", "Long persistence" };
+    inline const juce::StringArray goniometerPersistenceNames { "Off", "Short", "Long" };
     inline constexpr std::array<float, 3> goniometerPersistenceSeconds { 0.f, 0.15f, 0.6f };
 
     inline const juce::StringArray spectrumChannelsNames { "Left / Right", "Mid / Side" };
 
-    inline const juce::StringArray spectrumTiltNames { "Tilt 0 dB/oct", "Tilt 3 dB/oct", "Tilt 4.5 dB/oct", "Tilt 6 dB/oct" };
+    inline const juce::StringArray spectrumTiltNames { "0 dB/oct", "3 dB/oct", "4.5 dB/oct", "6 dB/oct" };
     inline constexpr std::array<float, 4> spectrumTiltsDbPerOctave { 0.f, 3.f, 4.5f, 6.f };
 
-    inline const juce::StringArray spectrumSmoothingNames { "No smoothing", "1/12 octave", "1/6 octave", "1/3 octave" };
+    inline const juce::StringArray spectrumSmoothingNames { "Off", "1/12 oct", "1/6 oct", "1/3 oct" };
     inline constexpr std::array<float, 4> spectrumSmoothingOctaves { 0.f, 1.f / 12.f, 1.f / 6.f, 1.f / 3.f };
 
-    inline const juce::StringArray spectrumResolutionNames { "FFT 2048", "FFT 4096", "FFT 8192", "FFT 16384" };
+    inline const juce::StringArray spectrumResolutionNames { "2048", "4096", "8192", "16384" };
     inline constexpr std::array<int, 4> spectrumResolutionOrders { 11, 12, 13, 14 };
 
     // The loudness that common platforms and standards ask for. 0 stands for no target.
-    inline const juce::StringArray loudnessTargetNames { "No target", "-14 LUFS Streaming", "-16 LUFS Podcast", "-23 LUFS EBU R 128", "-24 LKFS ATSC A/85" };
+    inline const juce::StringArray loudnessTargetNames { "Off", "-14 LUFS Streaming", "-16 LUFS Podcast", "-23 LUFS EBU R 128", "-24 LKFS ATSC A/85" };
     inline constexpr std::array<float, 5> loudnessTargetsLufs { 0.f, -14.f, -16.f, -23.f, -24.f };
 
     // How often the editor redraws. On macOS every frame costs a flush of the whole window, whatever
     // is drawn in it, so the frame rate is what decides how much of the CPU the editor takes.
-    inline const juce::StringArray refreshRateNames { "30 frames per second", "60 frames per second" };
+    inline const juce::StringArray refreshRateNames { "30 fps", "60 fps" };
     inline constexpr std::array<int, 2> refreshRatesHz { 30, 60 };
 
     // Looks up the value of a choice parameter, whatever index it is given

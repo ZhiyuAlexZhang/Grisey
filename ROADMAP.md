@@ -59,16 +59,38 @@ resizable, GPU-friendly design in the spirit of modern mastering tools.
 The audio-thread measurement (peak, RMS, correlation, loudness, true peak, ring buffer)
 costs about 0.15% of one core at 48 kHz.
 
-## Phase 3: Interface
+## Phase 3: Interface (done, apart from testing by hand)
 
-- [ ] Dark theme driven by one theme struct and one `LookAndFeel`, replacing the colour macros
-- [ ] One large resizable, HiDPI display with floating controls that fade in on hover
-- [ ] Gradient-filled curves, smooth meter ballistics, and hover readouts (frequency, note, dB)
-- [ ] Cut the cost of drawing, which is nearly all of the plugin's CPU use: about 25-30% of
-      one core with an active signal, in every view, against about 3% for our own code.
-      Cache static layers as images, repaint only what changes, and profile before adding
-      any GPU shader.
-- [ ] Give the view options proper controls. For now they are a plain row of combo boxes.
+- [x] A theme in one file (`Source/UI/Theme.h`) and one `LookAndFeel`, replacing the colour macros
+      and all of the version 1 interface code
+- [x] The look follows the design language of FabFilter's plugins, studied from a Figma recreation
+      of Pro-R and a screenshot of Pro-MB: charcoal chrome whose raised parts meet the recessed
+      ones in S-shaped shoulders, a display that runs from black to a deep purple, a thin grey
+      grid, a yellow curve for the main signal and a blue one for the second with flat translucent
+      fills, knobs with a blue ring, a dotted scale and a white lens for a pointer, floating panels
+      with a light edge, and bars that read "Label: value". It copies no artwork, and uses the
+      system's humanist typefaces (Avenir Next, Segoe UI) where FabFilter uses Frutiger.
+- [x] One large resizable display (860x480 to 2600x1600, remembered with the session), a header of
+      tabs, a bar of controls that changes with the view, and a side column that always shows the
+      level and loudness bars, the loudness readings, and the correlation
+- [x] Readouts under the mouse: frequency, note and level on the spectrum, frequency and note on
+      the spectrogram
+- [x] A floating scale knob on the goniometer, which brightens when the mouse is over the view
+- [x] The two histograms became one scrolling history of the peak and RMS levels
+- [x] Cut the cost of drawing. What was measured, on an M3 Max with a 1000x580 window:
+      - A frame costs a flush of the whole window, whatever is drawn in it. Repainting one small
+        bar at 60 frames per second costs as much as all the meters (about 15% of a core), and
+        repainting the whole window only a little more (21%). So repainting less gains little.
+      - JUCE's Metal layer renderer (`JUCE_COREGRAPHICS_RENDER_WITH_MULTIPLE_PAINT_CALLS`) and an
+        attached `OpenGLContext` were both worse, and a `juce::Timer` was worse than vblank
+        callbacks that skip frames.
+      - The frame rate is what decides the cost, so it is a setting: 30 frames per second by
+        default (10-15% of a core per view), or 60 (14-26%). The version 1 style interface took
+        20-39% at 60 in a smaller window. An idle editor takes about 4%.
+- [ ] Try everything that a picture cannot show, by hand: the menus, the tabs, the readouts under
+      the mouse, dragging the knob and the corner of the window, and the reset buttons
+- [ ] The spectrogram and the history are one image pixel per point, so they are a little soft on
+      a high-resolution display
 
 ## Phase 4: Release
 

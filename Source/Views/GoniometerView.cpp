@@ -36,13 +36,13 @@ void GoniometerView::resized()
     isLit = false;
     hasLastPoint = false;
 
-    scaleKnob.setBounds(getLocalBounds().removeFromBottom(100).removeFromLeft(84).reduced(10, 8));
+    scaleKnob.setBounds(getLocalBounds().removeFromBottom(128).removeFromLeft(108).reduced(4, 4));
     background.invalidate();
 }
 
 void GoniometerView::paintBackground(juce::Graphics& g)
 {
-    g.fillAll(Theme::display);
+    Theme::fillDisplay(g, getLocalBounds());
 
     const auto centre = plot.getCentre().toFloat();
     const float radius = 0.5f * (float)plot.getWidth();
@@ -56,7 +56,7 @@ void GoniometerView::paintBackground(juce::Graphics& g)
     // The axes and their labels: side runs left and right, mid runs up,
     // and the channels lie on the diagonals in between
     const std::array<const char*, 5> labels { "S", "L", "M", "R", "S" };
-    g.setFont(Theme::font(11.5f, true));
+    g.setFont(Theme::labelFont());
 
     for (int i = 0; i < 8; ++i)
     {

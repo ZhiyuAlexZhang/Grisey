@@ -23,7 +23,7 @@ LoudnessView::LoudnessView()
 
 void LoudnessView::paint(juce::Graphics& g)
 {
-    g.fillAll(Theme::display);
+    Theme::fillDisplay(g, getLocalBounds());
 
     auto area = getLocalBounds().reduced(18, 14);
     paintReadouts(g, area.removeFromLeft(210));
@@ -96,7 +96,7 @@ void LoudnessView::paintReadouts(juce::Graphics& g, juce::Rectangle<int> area)
     g.setColour(Theme::textDim);
     g.drawText("INTEGRATED", top.removeFromTop(14), juce::Justification::centredLeft);
 
-    g.setFont(Theme::font(46.f));
+    g.setFont(Theme::font(48.f));
     g.setColour(Theme::accent);
     g.drawText(format(readings.integrated, hasIntegrated), top.removeFromTop(50), juce::Justification::centredLeft);
 
@@ -107,7 +107,8 @@ void LoudnessView::paintReadouts(juce::Graphics& g, juce::Rectangle<int> area)
 
     if (hasIntegrated && target < 0.f)
     {
-        g.setColour(Theme::held);
+        g.setFont(Theme::font(11.f));
+        g.setColour(Theme::text);
         g.drawText(Theme::formatDb(readings.integrated - target, -1000.f) + " LU to target", unitRow, juce::Justification::centredLeft);
     }
 
@@ -160,13 +161,13 @@ void LoudnessView::paintHistory(juce::Graphics& g, juce::Rectangle<int> area)
     auto yOf = [&](float lufs) { return juce::jmap(juce::jlimit(bottom, top, lufs), bottom, top, plot.getBottom(), plot.getY()); };
 
     // Draw a grid line every 9 LU, and label the levels down the right
-    g.setFont(Theme::labelFont());
+    g.setFont(Theme::font(10.5f));
     for (float lufs = bottom; lufs <= top + 0.01f; lufs += 9.f)
     {
         const float y = yOf(lufs);
         g.setColour(Theme::grid);
         g.fillRect(plot.getX(), y, plot.getWidth(), 1.f);
-        g.setColour(Theme::textFaint);
+        g.setColour(Theme::accent.withAlpha(0.55f));
         g.drawText(juce::String(juce::roundToInt(lufs)), juce::Rectangle<float>(plot.getRight() + 4.f, y - 7.f, 30.f, 14.f), juce::Justification::centredLeft);
     }
 
@@ -220,16 +221,34 @@ void LoudnessView::paintHistory(juce::Graphics& g, juce::Rectangle<int> area)
 
         if (shortTermStarted)
         {
+            // A flat, translucent fill beneath a solid line, as in the spectrum
+            auto outline = shortTermPath;
             shortTermPath.lineTo(lastX, plot.getBottom());
             shortTermPath.closeSubPath();
 
-            g.setGradientFill(juce::ColourGradient(Theme::accent.withAlpha(0.55f), 0.f, plot.getY(),
-                                                   Theme::accent.withAlpha(0.04f), 0.f, plot.getBottom(), false));
+            g.setColour(Theme::accent.withAlpha(Theme::accentFillAlpha));
             g.fillPath(shortTermPath);
+
+            // The outline starts at the bottom of the plot, so its first segment is left out
+            juce::Path line;
+            juce::Path::Iterator segments(outline);
+            bool started = false;
+            while (segments.next())
+            {
+                if (segments.elementType == juce::Path::Iterator::lineTo)
+                {
+                    if (started) line.lineTo(segments.x1, segments.y1);
+                    else         line.startNewSubPath(segments.x1, segments.y1);
+                    started = true;
+                }
+            }
+
+            g.setColour(Theme::accent);
+            g.strokePath(line, juce::PathStrokeType(Theme::curveThickness, juce::PathStrokeType::curved));
         }
 
-        g.setColour(Theme::second.withAlpha(0.8f));
-        g.strokePath(momentaryPath, juce::PathStrokeType(1.f));
+        g.setColour(Theme::second);
+        g.strokePath(momentaryPath, juce::PathStrokeType(1.2f));
 
         // The integrated loudness runs across the graph as a line
         if (isLoudness(readings.integrated))
@@ -243,7 +262,7 @@ void LoudnessView::paintHistory(juce::Graphics& g, juce::Rectangle<int> area)
         {
             const float dashes[] { 5.f, 4.f };
             const float y = yOf(target);
-            g.setColour(Theme::held);
+            g.setColour(Theme::target);
             g.drawDashedLine({ plot.getX(), y, plot.getRight(), y }, dashes, 2, 1.2f);
 
             g.setFont(Theme::labelFont());
@@ -253,7 +272,7 @@ void LoudnessView::paintHistory(juce::Graphics& g, juce::Rectangle<int> area)
 
     // Name the lines in their colors
     auto legend = plot.toNearestInt().withTrimmedLeft(10).withTrimmedTop(6).removeFromTop(14);
-    g.setFont(Theme::font(11.5f, true));
+    g.setFont(Theme::labelFont());
     g.setColour(Theme::accent);
     g.drawText("SHORT TERM", legend.removeFromLeft(84), juce::Justification::centredLeft);
     g.setColour(Theme::second);

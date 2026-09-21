@@ -5,13 +5,13 @@ SpectrogramView::SpectrogramView(SpectrumSource& spectrumSource) : source(spectr
 {
     setOpaque(true);
 
-    // From the color of the display through deep blue and the accent color to a pale yellow,
-    // so that the lightness rises with the level
+    // From the black of the display through the deep and the bright blue to the yellow of the signal
+    // and on to white, so that the lightness rises with the level
     juce::ColourGradient gradient;
-    gradient.addColour(0.0, Theme::display);
-    gradient.addColour(0.3, juce::Colour(0xff15295f));
-    gradient.addColour(0.6, Theme::accent.darker(0.15f));
-    gradient.addColour(0.85, juce::Colour(0xffffe6a3));
+    gradient.addColour(0.0, Theme::displayTop);
+    gradient.addColour(0.3, Theme::secondDeep);
+    gradient.addColour(0.55, Theme::second);
+    gradient.addColour(0.82, Theme::accent);
     gradient.addColour(1.0, juce::Colours::white);
 
     for (size_t i = 0; i < colourTable.size(); ++i)
@@ -29,17 +29,17 @@ void SpectrogramView::resized()
     plot = getLocalBounds().withTrimmedLeft(34).withTrimmedTop(8).withTrimmedBottom(8).withTrimmedRight(8);
 
     // One display point for every row of the image
-    image.setSize(plot.getWidth(), plot.getHeight(), Theme::display);
+    image.setSize(plot.getWidth(), plot.getHeight(), Theme::displayTop);
     display.numPoints = juce::jmax(2, plot.getHeight());
 }
 
 void SpectrogramView::paint(juce::Graphics& g)
 {
-    g.fillAll(Theme::display);
+    Theme::fillDisplay(g, getLocalBounds());
     image.draw(g, plot);
 
     // Mark the frequency axis, stronger at the decades
-    g.setFont(Theme::labelFont());
+    g.setFont(Theme::font(10.5f));
     for (const auto& [frequency, text] : { std::pair<double, const char*> { 50.0, "50" }, { 100.0, "100" }, { 200.0, "200" }, { 500.0, "500" },
                                           { 1000.0, "1k" }, { 2000.0, "2k" }, { 5000.0, "5k" }, { 10000.0, "10k" } })
     {
@@ -64,8 +64,7 @@ void SpectrogramView::paint(juce::Graphics& g)
         auto box = juce::Rectangle<int>(Theme::textWidth(Theme::controlFont(), text) + 20, 24)
                        .withPosition(plot.getX() + 10, juce::jlimit(plot.getY(), plot.getBottom() - 24, *hoverY - 30));
 
-        g.setColour(Theme::menu.withAlpha(0.92f));
-        g.fillRoundedRectangle(box.toFloat(), 4.f);
+        Theme::drawPanel(g, box.toFloat());
         g.setFont(Theme::controlFont());
         g.setColour(Theme::text);
         g.drawText(text, box, juce::Justification::centred);
@@ -110,6 +109,6 @@ void SpectrogramView::mouseExit(const juce::MouseEvent&)
 
 void SpectrogramView::mouseDown(const juce::MouseEvent&)
 {
-    image.clear(Theme::display);
+    image.clear(Theme::displayTop);
     repaint();
 }

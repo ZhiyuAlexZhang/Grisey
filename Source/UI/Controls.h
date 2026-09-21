@@ -27,8 +27,8 @@ inline void addChoiceItems(juce::PopupMenu& menu, juce::RangedAudioParameter& pa
 }
 
 //==============================================================================
-// A choice parameter as its current option and a chevron, which opens a menu of the options.
-// An optional prefix names the setting, for options that do not explain themselves.
+// A choice parameter as the name of the setting in grey, its current option in a pale color, and a
+// small arrow, which opens a menu of the options: "Tilt: 4.5 dB/oct".
 class MenuButton : public juce::Component
 {
 public:
@@ -48,7 +48,7 @@ public:
         for (auto& name : parameter.getAllValueStrings())
             widest = juce::jmax(widest, Theme::textWidth(Theme::controlFont(), name));
 
-        const int prefixWidth = prefix.isEmpty() ? 0 : Theme::textWidth(Theme::labelFont(), prefix) + 6;
+        const int prefixWidth = prefix.isEmpty() ? 0 : Theme::textWidth(Theme::controlFont(), prefix) + prefixGap;
         return prefixWidth + widest + chevronWidth + 2 * padding;
     }
 
@@ -56,11 +56,12 @@ public:
     {
         auto bounds = getLocalBounds().reduced(padding, 0);
 
+        g.setFont(Theme::controlFont());
+
         if (prefix.isNotEmpty())
         {
-            g.setFont(Theme::labelFont());
-            g.setColour(Theme::textFaint.brighter(isMouseOver() ? 0.4f : 0.f));
-            g.drawText(prefix, bounds.removeFromLeft(Theme::textWidth(Theme::labelFont(), prefix) + 6), juce::Justification::centredLeft);
+            g.setColour(Theme::textDim);
+            g.drawText(prefix, bounds.removeFromLeft(Theme::textWidth(Theme::controlFont(), prefix) + prefixGap), juce::Justification::centredLeft);
         }
 
         // The chevron follows the text, however short the current option is
@@ -68,16 +69,15 @@ public:
         const auto textArea = bounds.removeFromLeft(Theme::textWidth(Theme::controlFont(), text) + 2);
         const auto chevronArea = bounds.removeFromLeft(chevronWidth).toFloat();
 
-        g.setFont(Theme::controlFont());
-        g.setColour(isMouseOver() ? Theme::text : Theme::textDim);
+        g.setColour(isMouseOver() ? juce::Colours::white : Theme::text);
         g.drawText(text, textArea, juce::Justification::centredLeft);
 
-        juce::Path chevron;
+        // A small filled arrow
+        juce::Path arrow;
         const auto centre = chevronArea.getCentre();
-        chevron.startNewSubPath(centre.x - 3.f, centre.y - 1.5f);
-        chevron.lineTo(centre.x, centre.y + 1.5f);
-        chevron.lineTo(centre.x + 3.f, centre.y - 1.5f);
-        g.strokePath(chevron, juce::PathStrokeType(1.2f));
+        arrow.addTriangle(centre.x - 3.f, centre.y - 1.5f, centre.x + 3.f, centre.y - 1.5f, centre.x, centre.y + 2.5f);
+        g.setColour(isMouseOver() ? Theme::text : Theme::textDim);
+        g.fillPath(arrow);
     }
 
     void mouseEnter(const juce::MouseEvent&) override { repaint(); }
@@ -91,8 +91,9 @@ public:
     }
 
 private:
-    static constexpr int padding = 8;
+    static constexpr int padding = 9;
     static constexpr int chevronWidth = 14;
+    static constexpr int prefixGap = 5;
 
     void setCurrent(int index)
     {
@@ -127,7 +128,7 @@ public:
     {
         auto bounds = getLocalBounds().reduced(padding, 0);
         const bool on = getToggleState();
-        const auto colour = on ? Theme::accent : (isHighlighted || isDown) ? Theme::text : Theme::textDim;
+        const auto colour = on ? Theme::accent : (isHighlighted || isDown) ? juce::Colours::white : Theme::text;
 
         if (isToggleable())
         {
@@ -170,7 +171,7 @@ public:
     void paint(juce::Graphics& g) override
     {
         auto bounds = getLocalBounds().reduced(8, 0);
-        const auto colour = isMouseOver() ? Theme::text : Theme::textDim;
+        const auto colour = isMouseOver() ? juce::Colours::white : Theme::text;
 
         // Three sliders, as a sign for settings
         auto icon = bounds.removeFromLeft(16).toFloat().withSizeKeepingCentre(11.f, 9.f);
@@ -256,7 +257,7 @@ public:
         for (int index = 0; index < names.size(); ++index)
         {
             const bool isSelected = index == selected;
-            g.setColour(isSelected ? Theme::text : index == hovered ? Theme::textDim.brighter(0.4f) : Theme::textDim);
+            g.setColour(isSelected ? juce::Colours::white : index == hovered ? Theme::text : Theme::textDim);
             g.drawText(names[index], areas[index], juce::Justification::centred);
 
             if (isSelected)
@@ -283,7 +284,7 @@ public:
 
 private:
     static constexpr int padding = 12;
-    static juce::Font tabFont() { return Theme::font(11.5f, true); }
+    static juce::Font tabFont() { return Theme::font(11.f, true).withExtraKerningFactor(0.08f); }
 
     int tabAt(juce::Point<int> position) const
     {
@@ -338,20 +339,29 @@ public:
 
     void resized() override
     {
-        slider.setBounds(getLocalBounds().withTrimmedTop(14).withTrimmedBottom(14));
+        slider.setBounds(getLocalBounds().reduced(shadowMargin).withTrimmedTop(8).withTrimmedBottom(30));
     }
 
     void paint(juce::Graphics& g) override
     {
+        // The margin leaves room for the panel's shadow
+        const auto panel = getLocalBounds().reduced(shadowMargin);
+        Theme::drawPanel(g, panel.toFloat());
+
+        auto text = panel.withTrimmedBottom(6).removeFromBottom(26);
         g.setFont(Theme::labelFont());
+        g.setColour(Theme::knobLabel);
+        g.drawText(name.toUpperCase(), text.removeFromTop(13), juce::Justification::centred);
+        g.setFont(Theme::font(11.f));
         g.setColour(Theme::textDim);
-        g.drawText(name.toUpperCase(), getLocalBounds().removeFromTop(14), juce::Justification::centred);
-        g.setColour(Theme::text);
-        g.drawText(juce::String(juce::roundToInt(slider.getValue())) + suffix, getLocalBounds().removeFromBottom(14), juce::Justification::centred);
+        g.drawText(juce::String(juce::roundToInt(slider.getValue())) + suffix, text, juce::Justification::centred);
     }
 
+    // The space around the panel that its shadow needs
+    static constexpr int shadowMargin = 10;
+
 private:
-    static constexpr float restingAlpha = 0.45f;
+    static constexpr float restingAlpha = 0.6f;
 
     juce::String name, suffix;
     juce::Slider slider;

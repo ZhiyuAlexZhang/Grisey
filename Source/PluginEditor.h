@@ -55,6 +55,10 @@ private:
     // Shows the view that the main view parameter selects
     void showMainView(int viewId);
 
+    // Draws the header and the bottom bar, whose raised parts meet the recessed ones in S-shaped shoulders
+    void paintHeader(juce::Graphics& g, juce::Rectangle<int> area);
+    void paintBottomBar(juce::Graphics& g, juce::Rectangle<int> area);
+
     // Fills the menu of the settings that the meters of the side column share
     void buildMeterSettingsMenu(juce::PopupMenu& menu);
 

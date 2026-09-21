@@ -53,19 +53,19 @@ MultiMeterAudioProcessorEditor::MultiMeterAudioProcessorEditor(MultiMeterAudioPr
     // The controls of the views, each of which shows with the views that it belongs to
     addAndMakeVisible(controlBar);
 
-    controlBar.addMenu(ControlBar::views({ viewGoniometer }), apvts, ID::goniometerMode);
-    controlBar.addMenu(ControlBar::views({ viewGoniometer }), apvts, ID::goniometerPersistence);
+    controlBar.addMenu(ControlBar::views({ viewGoniometer }), apvts, ID::goniometerMode, "Mode:");
+    controlBar.addMenu(ControlBar::views({ viewGoniometer }), apvts, ID::goniometerPersistence, "Persistence:");
 
-    controlBar.addMenu(ControlBar::views({ viewSpectrum }), apvts, ID::spectrumChannels);
-    controlBar.addMenu(ControlBar::views({ viewSpectrum, viewSpectrogram }), apvts, ID::spectrumTilt);
-    controlBar.addMenu(ControlBar::views({ viewSpectrum }), apvts, ID::spectrumSmoothing);
-    controlBar.addMenu(ControlBar::views({ viewSpectrum, viewSpectrogram }), apvts, ID::spectrumResolution);
+    controlBar.addMenu(ControlBar::views({ viewSpectrum }), apvts, ID::spectrumChannels, "Channels:");
+    controlBar.addMenu(ControlBar::views({ viewSpectrum, viewSpectrogram }), apvts, ID::spectrumTilt, "Tilt:");
+    controlBar.addMenu(ControlBar::views({ viewSpectrum }), apvts, ID::spectrumSmoothing, "Smoothing:");
+    controlBar.addMenu(ControlBar::views({ viewSpectrum, viewSpectrogram }), apvts, ID::spectrumResolution, "FFT:");
     controlBar.addToggle(ControlBar::views({ viewSpectrum }), apvts, ID::spectrumPeakHold, "Peak hold");
 
     // Freezing is for a moment's look, so it is not a setting that is saved
     freezeButton = &controlBar.addButton(ControlBar::views({ viewSpectrum, viewSpectrogram }), "Freeze", true, [] {});
 
-    controlBar.addMenu(ControlBar::views({ viewLoudness }), apvts, ID::loudnessTarget, "TARGET");
+    controlBar.addMenu(ControlBar::views({ viewLoudness }), apvts, ID::loudnessTarget, "Target:");
     controlBar.addButton(ControlBar::views({ viewLoudness }), "Reset", false, [this]
     {
         audioProcessor.resetLoudness();
@@ -102,29 +102,124 @@ MultiMeterAudioProcessorEditor::~MultiMeterAudioProcessorEditor()
 //==============================================================================
 void MultiMeterAudioProcessorEditor::paint(juce::Graphics& g)
 {
-    // The views are opaque, so this only shows in the header, the bottom bar, and the gaps between the displays
-    g.fillAll(Theme::window);
+    // The views are opaque, so this only shows as the hairlines between the displays, and under the chrome
+    g.fillAll(Theme::edge);
 
-    auto header = getLocalBounds().removeFromTop(Theme::headerHeight);
-    g.setGradientFill(juce::ColourGradient(Theme::windowLight, 0.f, 0.f, Theme::window, 0.f, (float)header.getBottom(), false));
-    g.fillRect(header);
+    auto bounds = getLocalBounds();
+    paintHeader(g, bounds.removeFromTop(Theme::headerHeight));
+    paintBottomBar(g, bounds.removeFromBottom(Theme::bottomBarHeight));
+}
+
+namespace
+{
+    // The widths of the raised tab that holds the name, and of the shoulders on either side of it
+    constexpr float nameTabStart = 6.f;
+    constexpr float nameTabWidth = 132.f;
+    constexpr float shoulderWidth = 46.f;
+
+    // The thickness of the raised edge that runs along the rest of the chrome
+    constexpr float rimThickness = 4.f;
+
+    // Adds an S-shaped shoulder to a path, from where the path is to a point
+    void shoulderTo(juce::Path& path, juce::Point<float> to)
+    {
+        const auto from = path.getCurrentPosition();
+        const float middle = 0.5f * (from.x + to.x);
+        path.cubicTo(middle, from.y, middle, to.y, to.x, to.y);
+    }
+}
+
+void MultiMeterAudioProcessorEditor::paintHeader(juce::Graphics& g, juce::Rectangle<int> area)
+{
+    const auto bounds = area.toFloat();
+
+    // The recessed strip, which holds the tabs
+    g.setGradientFill(juce::ColourGradient(Theme::chromeInsetTop, 0.f, bounds.getY(), Theme::chromeInsetBottom, 0.f, bounds.getBottom(), false));
+    g.fillRect(bounds);
+
+    // The raised part: a rim along the top, which drops into a tab for the name
+    const float rim = bounds.getY() + rimThickness;
+    const float tabLeft = bounds.getX() + nameTabStart + shoulderWidth;
+    const float tabRight = tabLeft + nameTabWidth;
+
+    juce::Path raised;
+    raised.startNewSubPath(bounds.getTopLeft());
+    raised.lineTo(bounds.getTopRight());
+    raised.lineTo(bounds.getRight(), rim);
+    raised.lineTo(tabRight + shoulderWidth, rim);
+    shoulderTo(raised, { tabRight, bounds.getBottom() });
+    raised.lineTo(tabLeft, bounds.getBottom());
+    shoulderTo(raised, { bounds.getX() + nameTabStart, rim });
+    raised.lineTo(bounds.getX(), rim);
+    raised.closeSubPath();
+
+    g.setGradientFill(juce::ColourGradient(Theme::chromeTop, 0.f, bounds.getY(), Theme::chromeBottom, 0.f, bounds.getBottom(), false));
+    g.fillPath(raised);
+
+    // A light edge where the raised part ends, which is what makes it look raised
+    g.setColour(Theme::panelEdge.withAlpha(0.7f));
+    g.strokePath(raised, juce::PathStrokeType(1.f));
+    g.setColour(Theme::edge);
+    g.fillRect(bounds.withTop(bounds.getBottom() - 1.f));
 
     // The name of the plugin, with its second half in the accent color
-    auto name = header.withTrimmedLeft(16);
-    const auto nameFont = Theme::font(15.f, true);
+    auto name = area.withX(juce::roundToInt(tabLeft)).withWidth(juce::roundToInt(nameTabWidth)).translated(0, 1);
+    const auto nameFont = Theme::font(16.f);
+    const int multiWidth = Theme::textWidth(nameFont, "Multi"), meterWidth = Theme::textWidth(nameFont, "Meter");
+    name = name.withSizeKeepingCentre(multiWidth + meterWidth, name.getHeight());
+
     g.setFont(nameFont);
-    g.setColour(Theme::text);
-    g.drawText("Multi", name, juce::Justification::centredLeft);
+    g.setColour(juce::Colour(0xfff0e0e0));
+    g.drawText("Multi", name.removeFromLeft(multiWidth), juce::Justification::centredLeft);
     g.setColour(Theme::accent);
-    g.drawText("Meter", name.withTrimmedLeft(Theme::textWidth(nameFont, "Multi")), juce::Justification::centredLeft);
+    g.drawText("Meter", name, juce::Justification::centredLeft);
+}
+
+void MultiMeterAudioProcessorEditor::paintBottomBar(juce::Graphics& g, juce::Rectangle<int> area)
+{
+    const auto bounds = area.toFloat();
+
+    // What shows where the bar dips away is the bottom of the displays
+    g.setColour(Theme::displayBottom);
+    g.fillRect(bounds);
+
+    // The bar is raised along its whole length, except for a dip between the controls of the view
+    // and the settings of the meters, if the window is wide enough to leave room for one
+    const float dipLeft = (float)controlBar.getX() + (float)controlBar.getUsedWidth() + 24.f;
+    const float dipRight = (float)meterSettingsButton.getX() - 12.f;
+    const bool hasDip = dipRight - dipLeft > 2.f * shoulderWidth + 20.f;
+    const float rim = bounds.getBottom() - rimThickness;
+
+    juce::Path raised;
+    raised.startNewSubPath(bounds.getTopLeft());
+
+    if (hasDip)
+    {
+        raised.lineTo(dipLeft, bounds.getY());
+        shoulderTo(raised, { dipLeft + shoulderWidth, rim });
+        raised.lineTo(dipRight - shoulderWidth, rim);
+        shoulderTo(raised, { dipRight, bounds.getY() });
+    }
+
+    raised.lineTo(bounds.getTopRight());
+    raised.lineTo(bounds.getBottomRight());
+    raised.lineTo(bounds.getBottomLeft());
+    raised.closeSubPath();
+
+    g.setGradientFill(juce::ColourGradient(Theme::footerTop.brighter(0.08f), 0.f, bounds.getY(), Theme::footerBottom, 0.f, bounds.getBottom(), false));
+    g.fillPath(raised);
+    g.setColour(Theme::panelEdge.withAlpha(0.7f));
+    g.strokePath(raised, juce::PathStrokeType(1.f));
 }
 
 void MultiMeterAudioProcessorEditor::resized()
 {
     auto bounds = getLocalBounds();
 
+    // The tabs start where the shoulder of the name's tab has come up to the rim
     auto header = bounds.removeFromTop(Theme::headerHeight);
-    header.removeFromLeft(116);
+    header.removeFromLeft(juce::roundToInt(nameTabStart + nameTabWidth + 2.f * shoulderWidth) + 4);
+    header.removeFromTop(juce::roundToInt(rimThickness));
     tabs.setBounds(header.removeFromLeft(juce::jmin(header.getWidth(), tabs.getIdealWidth())));
 
     auto bottomBar = bounds.removeFromBottom(Theme::bottomBarHeight);
@@ -280,6 +375,9 @@ void MultiMeterAudioProcessorEditor::showMainView(int viewId)
 {
     tabs.setSelection(viewId);
     controlBar.showView(viewId);
+
+    // The dip in the bottom bar follows the width of the view's controls
+    repaint(getLocalBounds().removeFromBottom(Theme::bottomBarHeight));
 
     goniometerView.setVisible(viewId == Parameters::viewGoniometer);
     spectrumView.setVisible(viewId == Parameters::viewSpectrum);

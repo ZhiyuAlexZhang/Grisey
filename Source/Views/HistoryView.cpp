@@ -9,26 +9,43 @@ float HistoryView::yOf(float decibels) const
 void HistoryView::resized()
 {
     plot = getLocalBounds().withTrimmedRight(34).withTrimmedBottom(20).withTrimmedTop(8).withTrimmedLeft(8);
-    image.setSize(plot.getWidth(), plot.getHeight(), Theme::display);
 
-    // The same colors as the level meters: blue through the working range, warm near full scale, red above it
+    // The same colors as the level meters: blue through the working range, yellow near full scale, red above it
     auto proportionOf = [](float decibels) { return (double)juce::jmap(decibels, minDb, maxDb, 0.f, 1.f); };
 
-    juce::ColourGradient gradient(Theme::accent.darker(0.7f), 0.f, 0.f, Theme::over, 0.f, 1.f, false);
-    gradient.addColour(proportionOf(-18.f), Theme::accent);
-    gradient.addColour(proportionOf(-6.f), Theme::held);
+    juce::ColourGradient gradient(Theme::secondDeep, 0.f, 0.f, Theme::over, 0.f, 1.f, false);
+    gradient.addColour(proportionOf(-24.f), Theme::second);
+    gradient.addColour(proportionOf(-6.f), Theme::accent);
     gradient.addColour(proportionOf(0.f), Theme::over);
+
+    // The background of each row is what Theme::fillDisplay() draws at its height
+    const juce::ColourGradient background(Theme::displayTop, 0.f, 0.25f * (float)getHeight(), Theme::displayBottom, 0.f, (float)getHeight(), false);
 
     const int height = juce::jmax(1, plot.getHeight());
     rmsColours.resize((size_t)height);
     peakColours.resize((size_t)height);
+    backgroundColours.resize((size_t)height);
 
     for (int row = 0; row < height; ++row)
     {
+        const double y = (double)(plot.getY() + row);
+        const auto behind = background.getColourAtPosition(juce::jlimit(0.0, 1.0, (y - 0.25 * getHeight()) / (0.75 * getHeight())));
         const auto colour = gradient.getColourAtPosition(1.0 - (double)row / (double)height);
-        rmsColours[(size_t)row] = Theme::display.interpolatedWith(colour, 0.85f);
-        peakColours[(size_t)row] = Theme::display.interpolatedWith(colour, 0.3f);
+
+        backgroundColours[(size_t)row] = behind;
+        rmsColours[(size_t)row] = behind.interpolatedWith(colour, 0.85f);
+        peakColours[(size_t)row] = behind.interpolatedWith(colour, 0.3f);
     }
+
+    image.setSize(plot.getWidth(), plot.getHeight(), Theme::display);
+    clearImage();
+}
+
+void HistoryView::clearImage()
+{
+    // Every column starts as background
+    for (int column = 0; column < image.getWidth(); ++column)
+        image.addColumn([this](int row) { return backgroundColours[(size_t)row]; });
 }
 
 void HistoryView::update(float peakDb, float rmsDb, float elapsedSeconds)
@@ -51,7 +68,7 @@ void HistoryView::update(float peakDb, float rmsDb, float elapsedSeconds)
     {
         return hasRms && row >= rmsRow ? rmsColours[(size_t)row]
              : hasPeak && row >= peakRow ? peakColours[(size_t)row]
-             : Theme::display;
+             : backgroundColours[(size_t)row];
     });
 
     columnPeak = columnRms = -200.f;
@@ -60,18 +77,18 @@ void HistoryView::update(float peakDb, float rmsDb, float elapsedSeconds)
 
 void HistoryView::paint(juce::Graphics& g)
 {
-    g.fillAll(Theme::display);
+    Theme::fillDisplay(g, getLocalBounds());
     image.draw(g, plot);
 
     // A line for every 12 dB, stronger at 0, drawn over the image so that it scrolls underneath
-    g.setFont(Theme::labelFont());
+    g.setFont(Theme::font(10.5f));
     for (int decibels = 0; decibels > (int)minDb; decibels -= 12)
     {
         const float y = yOf((float)decibels);
         g.setColour(juce::Colours::white.withAlpha(decibels == 0 ? 0.16f : 0.07f));
         g.fillRect((float)plot.getX(), y, (float)plot.getWidth(), 1.f);
 
-        g.setColour(decibels == 0 ? Theme::textDim : Theme::textFaint);
+        g.setColour(Theme::accent.withAlpha(decibels == 0 ? 0.9f : 0.55f));
         g.drawText(juce::String(decibels), juce::Rectangle<float>((float)plot.getRight() + 4.f, y - 7.f, 28.f, 14.f), juce::Justification::centredLeft);
     }
 
@@ -88,15 +105,15 @@ void HistoryView::paint(juce::Graphics& g)
     }
 
     auto legend = plot.withTrimmedLeft(10).withTrimmedTop(6).removeFromTop(14);
-    g.setFont(Theme::font(11.5f, true));
-    g.setColour(Theme::accent);
+    g.setFont(Theme::labelFont());
+    g.setColour(Theme::second);
     g.drawText("RMS", legend.removeFromLeft(34), juce::Justification::centredLeft);
-    g.setColour(Theme::accent.withAlpha(0.5f));
+    g.setColour(Theme::second.withAlpha(0.5f));
     g.drawText("PEAK", legend.removeFromLeft(40), juce::Justification::centredLeft);
 }
 
 void HistoryView::mouseDown(const juce::MouseEvent&)
 {
-    image.clear(Theme::display);
+    clearImage();
     repaint();
 }
