@@ -367,7 +367,7 @@ void GriseyAudioProcessorEditor::updateMeters(float elapsedSeconds)
             spectrumSettings.tiltDbPerOctave = tilt;
             spectrumSettings.smoothingOctaves = valueAt(spectrumSmoothingOctaves, getChoice(ID::spectrumSmoothing));
             spectrumSettings.peakHold = isOn(ID::spectrumPeakHold);
-            spectrumView.update(hasNewSpectra && !frozen, spectrumSettings);
+            spectrumView.update(hasNewSpectra, spectrumSettings, elapsedSeconds, frozen);
         }
     }
 }

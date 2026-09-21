@@ -76,7 +76,7 @@ void SpectrumView::paint(juce::Graphics& g)
 {
     grid.draw(g, getLocalBounds(), true, [this](juce::Graphics& layer) { paintGrid(layer); });
 
-    if (curves[0].empty())
+    if (shown[0].empty())
         return;
 
     {
@@ -89,15 +89,29 @@ void SpectrumView::paint(juce::Graphics& g)
         {
             const auto i = (size_t)index;
 
-            // A flat, translucent fill beneath a solid line
-            g.setColour(colours[i].withAlpha(index == 0 ? Theme::accentFillAlpha : Theme::secondFillAlpha));
-            g.fillPath(makePath(curves[i], true));
+            // Where the curve was a moment ago, fainter the longer ago it was
+            for (int age = numTrails; age >= 1; --age)
+            {
+                const auto& trail = trails[(size_t)((nextTrail - age + 2 * numTrails) % numTrails)][i];
+                if (trail.size() == shown[i].size())
+                {
+                    g.setColour(colours[i].withAlpha(0.42f * (float)(numTrails + 1 - age) / (float)(numTrails + 1)));
+                    g.strokePath(makePath(trail, false, trailPointStep), juce::PathStrokeType(1.f));
+                }
+            }
+
+            // A glow beneath the line, which fades out towards the bottom. The second curve usually
+            // lies over the first, as left and right do, so its glow is fainter, or the two would
+            // mix into a muddy color.
+            g.setGradientFill(juce::ColourGradient(colours[i].withAlpha(index == 0 ? 0.34f : 0.12f), 0.f, (float)plot.getY(),
+                                                   colours[i].withAlpha(0.f), 0.f, (float)plot.getBottom(), false));
+            g.fillPath(makePath(shown[i], true));
 
             g.setColour(colours[i]);
-            g.strokePath(makePath(curves[i], false), juce::PathStrokeType(Theme::curveThickness, juce::PathStrokeType::curved));
+            g.strokePath(makePath(shown[i], false), juce::PathStrokeType(1.5f, juce::PathStrokeType::curved));
 
             // The peak hold is a thin, paler line of the same color
-            if (settings.peakHold && peakHolds[i].size() == curves[i].size())
+            if (settings.peakHold && peakHolds[i].size() == shown[i].size())
             {
                 g.setColour(colours[i].brighter(0.6f).withAlpha(0.75f));
                 g.strokePath(makePath(peakHolds[i], false), juce::PathStrokeType(1.f));
@@ -133,9 +147,9 @@ void SpectrumView::paintReadout(juce::Graphics& g)
     g.fillRect((float)position.x, (float)plot.getY(), 1.f, (float)plot.getHeight());
 
     // The level of the first curve at this frequency
-    const auto index = (size_t)juce::jlimit(0, (int)curves[0].size() - 1,
-        juce::roundToInt((float)(position.x - plot.getX()) / (float)juce::jmax(1, plot.getWidth()) * (float)(curves[0].size() - 1)));
-    const float level = curves[0][index];
+    const auto index = (size_t)juce::jlimit(0, (int)shown[0].size() - 1,
+        juce::roundToInt((float)(position.x - plot.getX()) / (float)juce::jmax(1, plot.getWidth()) * (float)(shown[0].size() - 1)));
+    const float level = shown[0][index];
 
     // A point on the curve, bright with a dark outline
     const auto point = juce::Rectangle<float>(10.f, 10.f).withCentre({ (float)position.x, yOf(juce::jmax(level, minDecibels)) });
@@ -158,51 +172,55 @@ void SpectrumView::paintReadout(juce::Graphics& g)
     g.drawText(text, box, juce::Justification::centred);
 }
 
-void SpectrumView::update(bool hasNewSpectra, const Settings& newSettings)
+void SpectrumView::update(bool hasNewSpectra, const Settings& newSettings, float elapsedSeconds, bool held)
 {
     // One point per pixel is as fine as the screen can show
     const int numPoints = juce::jmax(2, plot.getWidth());
     const bool settingsChanged = numPoints != display.numPoints || !(newSettings == settings);
 
-    if (!hasNewSpectra && !settingsChanged)
-        return;
-
-    // The peak hold starts afresh whenever it would no longer be comparable
+    // Whatever is no longer comparable starts afresh
     if (settingsChanged)
+    {
         for (auto& hold : peakHolds)
             hold.clear();
+
+        for (auto& trail : trails)
+            for (auto& curve : trail)
+                curve.clear();
+    }
 
     settings = newSettings;
     display.numPoints = numPoints;
     display.tiltDbPerOctave = settings.tiltDbPerOctave;
     display.smoothingOctaves = settings.smoothingOctaves;
 
-    auto& engine = source.getEngine();
-    const auto sampleRate = source.getSampleRate();
-
-    engine.render(settings.midSide ? SpectrumEngine::Curve::mid : SpectrumEngine::Curve::left, display, sampleRate, curves[0]);
-    engine.render(settings.midSide ? SpectrumEngine::Curve::side : SpectrumEngine::Curve::right, display, sampleRate, curves[1]);
-
-    if (settings.peakHold)
+    if ((hasNewSpectra && !held) || settingsChanged)
     {
-        for (size_t i = 0; i < curves.size(); ++i)
+        auto& engine = source.getEngine();
+        const auto sampleRate = source.getSampleRate();
+
+        engine.render(settings.midSide ? SpectrumEngine::Curve::mid : SpectrumEngine::Curve::left, display, sampleRate, curves[0]);
+        engine.render(settings.midSide ? SpectrumEngine::Curve::side : SpectrumEngine::Curve::right, display, sampleRate, curves[1]);
+
+        if (settings.peakHold)
         {
-            if (peakHolds[i].size() != curves[i].size())
-                peakHolds[i] = curves[i];
+            for (size_t i = 0; i < curves.size(); ++i)
+            {
+                if (peakHolds[i].size() != curves[i].size())
+                    peakHolds[i] = curves[i];
 
-            for (size_t point = 0; point < curves[i].size(); ++point)
-                peakHolds[i][point] = juce::jmax(peakHolds[i][point], curves[i][point]);
+                for (size_t point = 0; point < curves[i].size(); ++point)
+                    peakHolds[i][point] = juce::jmax(peakHolds[i][point], curves[i][point]);
+            }
         }
-    }
 
-    // The correlation strip has one pixel per display point: blue where the channels are in phase,
-    // red where they are out of phase, and clear where they are unrelated or silent
-    engine.renderCorrelation(display, sampleRate, correlationBandOctaves, correlationQuietDb, correlation);
+        // The correlation strip has one pixel per display point: blue where the channels are in phase,
+        // red where they are out of phase, and clear where they are unrelated or silent
+        engine.renderCorrelation(display, sampleRate, correlationBandOctaves, correlationQuietDb, correlation);
 
-    if (correlationStrip.getWidth() != numPoints)
-        correlationStrip = juce::Image(juce::Image::ARGB, numPoints, 1, true);
+        if (correlationStrip.getWidth() != numPoints)
+            correlationStrip = juce::Image(juce::Image::ARGB, numPoints, 1, true);
 
-    {
         juce::Image::BitmapData pixels(correlationStrip, juce::Image::BitmapData::writeOnly);
         for (int point = 0; point < numPoints; ++point)
         {
@@ -213,10 +231,56 @@ void SpectrumView::update(bool hasNewSpectra, const Settings& newSettings)
         }
     }
 
-    repaint();
+    if (held || curves[0].empty())
+    {
+        if (settingsChanged)
+            repaint();
+
+        return;
+    }
+
+    // Move what is drawn towards the latest spectrum: quickly up, and slowly down
+    const float attack = 1.f - std::exp(-elapsedSeconds / attackSeconds);
+    const float release = 1.f - std::exp(-elapsedSeconds / releaseSeconds);
+    float furthestMoved = 0.f;
+
+    for (size_t i = 0; i < curves.size(); ++i)
+    {
+        // A curve that is new, or of a new length, starts where it is heading
+        if (shown[i].size() != curves[i].size())
+        {
+            shown[i] = curves[i];
+            furthestMoved = 100.f;
+            continue;
+        }
+
+        for (size_t point = 0; point < curves[i].size(); ++point)
+        {
+            // Below the bottom of the plot there is nothing to see, so nothing to wait for
+            const float target = juce::jmax(curves[i][point], minDecibels - 6.f);
+            const float from = juce::jmax(shown[i][point], minDecibels - 6.f);
+            const float to = from + (target - from) * (target > from ? attack : release);
+
+            furthestMoved = juce::jmax(furthestMoved, std::abs(to - from));
+            shown[i][point] = to;
+        }
+    }
+
+    // Keep a copy of where the curves are, every so often, for the trails
+    secondsSinceTrail += elapsedSeconds;
+    if (secondsSinceTrail >= trailIntervalSeconds)
+    {
+        secondsSinceTrail = 0.f;
+        trails[(size_t)nextTrail] = shown;
+        nextTrail = (nextTrail + 1) % numTrails;
+    }
+
+    // A twentieth of a decibel is less than a pixel
+    if (furthestMoved > 0.05f || settingsChanged)
+        repaint();
 }
 
-juce::Path SpectrumView::makePath(const std::vector<float>& decibels, bool closed) const
+juce::Path SpectrumView::makePath(const std::vector<float>& decibels, bool closed, int pointStep) const
 {
     juce::Path path;
     if (decibels.size() < 2)
@@ -225,10 +289,16 @@ juce::Path SpectrumView::makePath(const std::vector<float>& decibels, bool close
     path.preallocateSpace(3 * (int)decibels.size() + 12);
 
     const float xStep = (float)plot.getWidth() / (float)(decibels.size() - 1);
-    for (size_t point = 0; point < decibels.size(); ++point)
+    const auto step = (size_t)juce::jmax(1, pointStep);
+    for (size_t point = 0; point < decibels.size(); point += step)
     {
+        // A point that stands for several takes the highest of them, so that a narrow peak is kept
+        float highest = decibels[point];
+        for (size_t other = point + 1; other < juce::jmin(point + step, decibels.size()); ++other)
+            highest = juce::jmax(highest, decibels[other]);
+
         // A little below the bottom, so that the stroke of a silent curve is out of sight
-        const float y = yOf(juce::jmax(decibels[point], minDecibels - 3.f));
+        const float y = yOf(juce::jmax(highest, minDecibels - 3.f));
         const float x = (float)plot.getX() + xStep * (float)point;
 
         if (point == 0)

@@ -157,12 +157,39 @@ public:
 
                 if (first > last)
                 {
-                    // Where the points are closer together than the bins, the curve runs smoothly from bin to bin
+                    // Where the points are closer together than the bins, as they are at low frequencies,
+                    // the curve runs through the bins as a smooth spline of their levels in decibels.
+                    // Straight lines between them would show as a row of arches. The spline keeps the
+                    // shape of the bins: it never goes above the higher or below the lower of the two
+                    // that it runs between, which matters because a tone stands 100 dB above the bins
+                    // beside it, and a spline that was free to overshoot would read several decibels high.
                     const double position = juce::jlimit(0.0, static_cast<double>(numBins - 1), 0.5 * (cellLowBin + cellHighBin));
-                    const auto lower = static_cast<size_t>(position);
-                    const auto upper = juce::jmin(lower + 1, static_cast<size_t>(numBins - 1));
-                    const double fraction = position - static_cast<double>(lower);
-                    power = powerOf(curve, lower) * (1.0 - fraction) + powerOf(curve, upper) * fraction;
+                    const int lower = static_cast<int>(position);
+                    const double t = position - static_cast<double>(lower);
+
+                    auto levelOf = [&](int bin)
+                    {
+                        const double p = powerOf(curve, static_cast<size_t>(juce::jlimit(0, numBins - 1, bin)));
+                        return 10.0 * std::log10(juce::jmax(p, 1.0e-15));
+                    };
+
+                    const double p0 = levelOf(lower - 1), p1 = levelOf(lower), p2 = levelOf(lower + 1), p3 = levelOf(lower + 2);
+
+                    // The slope at a bin is the harmonic mean of the slopes on either side of it,
+                    // and zero at a peak or a dip (Fritsch and Carlson's monotone cubic)
+                    auto slopeBetween = [](double before, double after)
+                    {
+                        return before * after > 0.0 ? 2.0 * before * after / (before + after) : 0.0;
+                    };
+
+                    const double m1 = slopeBetween(p1 - p0, p2 - p1);
+                    const double m2 = slopeBetween(p2 - p1, p3 - p2);
+
+                    // A cubic Hermite curve from p1 to p2 with those slopes
+                    const double t2 = t * t, t3 = t2 * t;
+                    const double level = (2.0 * t3 - 3.0 * t2 + 1.0) * p1 + (t3 - 2.0 * t2 + t) * m1
+                                       + (-2.0 * t3 + 3.0 * t2) * p2 + (t3 - t2) * m2;
+                    power = std::pow(10.0, level / 10.0);
                 }
             }
 

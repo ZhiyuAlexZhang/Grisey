@@ -28,6 +28,7 @@ Grisey is a free, open-source metering plugin for mixing and mastering. One resi
 - FFT sizes from 2048 to 16384 points, scaled so that a full-scale sine reads 0 dB.
 - Left / right or mid / side, adjustable tilt, fractional-octave smoothing, peak hold, and freeze.
 - A correlation strip along the bottom shows, band by band, where the channels are in phase and where they are out of phase.
+- The curves rise at once and fall back smoothly, with faint trails that show how they are moving.
 - Under the mouse: the frequency, the nearest note, and the level.
 
 ### Spectrogram

@@ -99,6 +99,14 @@ costs about 0.15% of one core at 48 kHz.
       30 or 60 s). What is recorded is kept as data, so resizing the window or changing the span
       draws the pictures again without losing anything. Freezing holds the pictures still while
       the recording carries on underneath.
+- [x] The spectrum moves like an analyzer should: the curves rise to a new level in 25 ms and fall
+      back over 300 ms, in every frame rather than only when there is a new spectrum, with three
+      faint trails of where they were, a glow beneath the line that fades out downwards, and a
+      smooth curve through the few bins at low frequencies, where straight lines had shown as a
+      row of arches. The curve through the bins is a monotone spline: a Catmull-Rom spline was
+      tried first and read a full-scale tone 6.8 dB high, because a tone stands 100 dB above the
+      bins beside it. The trails are drawn at a third of the resolution, which brought the view
+      back to what it cost before (14% of a core at 30 frames per second).
 - [ ] Try everything that a picture cannot show, by hand: the menus, the tabs, the readouts under
       the mouse, dragging the knob and the corner of the window, and the reset buttons
 - [ ] The spectrogram and the history have one image column per slot of the timeline, stretched

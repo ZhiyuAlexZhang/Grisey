@@ -99,6 +99,21 @@ struct SpectrumEngineTests : juce::UnitTest
             expectWithinAbsoluteError(peak.frequency, frequency, frequency * 0.01);
         }
 
+        beginTest("The curve between the bins never rises above them");
+        {
+            // At low frequencies the display has many points for every bin. A tone there stands far above
+            // the bins beside it, and the curve drawn through them must not overshoot it.
+            SpectrumEngine engine;
+            const double frequency = 5.0 * spectrumSampleRate / engine.getSize();
+            const auto tone = makeTone(frequency, 1.0, length);
+            analyzeSignal(engine, tone, tone);
+            engine.render(SpectrumEngine::Curve::left, display, spectrumSampleRate, curve);
+
+            const auto peak = findPeak(curve, display);
+            expect(peak.level <= 0.05f && peak.level > -0.5f, "Read " + juce::String(peak.level, 2) + " dB");
+            expectWithinAbsoluteError(peak.frequency, frequency, frequency * 0.05);
+        }
+
         beginTest("A sine between two bins reads within the 1.5 dB that a Hann window loses");
         {
             SpectrumEngine engine;

@@ -20,6 +20,19 @@ public:
     // The correlation of each point is taken over a band of at least this width
     static constexpr float correlationBandOctaves = 1.f / 3.f;
 
+    // How the curves move. They rise to a new level almost at once, and fall back slowly and
+    // smoothly, which is easier to read than a curve that follows every frame, and they move in
+    // every frame, whether or not there is a new spectrum, so the motion is never jerky.
+    static constexpr float attackSeconds = 0.025f;
+    static constexpr float releaseSeconds = 0.30f;
+
+    // Behind each curve are faint copies of where it was a moment ago, which show how it is moving
+    static constexpr int numTrails = 3;
+    static constexpr float trailIntervalSeconds = 0.07f;
+
+    // A trail is faint, so it is drawn with a point for every few of the curve's, which costs less
+    static constexpr int trailPointStep = 3;
+
     // Bands that are quieter than this have no correlation to show. The correlation of a noise floor
     // is as random as the noise, so the strip only speaks where there is signal.
     static constexpr float correlationQuietDb = -72.f;
@@ -51,16 +64,18 @@ public:
     // Clicking the view restarts the peak hold
     void mouseDown(const juce::MouseEvent&) override;
 
-    // Lays out the curves again from the source's spectra, called by the editor once per frame.
-    // hasNewSpectra says whether the source has analyzed new audio since the last call.
-    void update(bool hasNewSpectra, const Settings& newSettings);
+    // Moves the curves towards the source's spectra, called by the editor once per frame.
+    // hasNewSpectra says whether the source has analyzed new audio since the last call. While
+    // held, the curves stand still.
+    void update(bool hasNewSpectra, const Settings& newSettings, float elapsedSeconds, bool held);
 
 private:
     void paintGrid(juce::Graphics& g);
     void paintReadout(juce::Graphics& g);
 
     // Builds the path of a curve within the plot. A closed path runs along the bottom for filling.
-    juce::Path makePath(const std::vector<float>& decibels, bool closed) const;
+    // pointStep is how many of the curve's points each point of the path stands for.
+    juce::Path makePath(const std::vector<float>& decibels, bool closed, int pointStep = 1) const;
 
     float xOf(double frequency) const;
     float yOf(float decibels) const;
@@ -71,8 +86,14 @@ private:
     // The plot is the view less the margins that hold the labels of the axes
     juce::Rectangle<int> plot;
 
-    // The curves in decibels, one value per display point
-    std::array<std::vector<float>, 2> curves, peakHolds;
+    // In decibels, one value per display point: where the curves are heading, which is the latest
+    // spectrum, where they are drawn, which follows it, and the highest that they have been
+    std::array<std::vector<float>, 2> curves, shown, peakHolds;
+
+    // Where the curves were drawn a moment ago, the oldest first once they are in order
+    std::array<std::array<std::vector<float>, 2>, numTrails> trails;
+    int nextTrail = 0;
+    float secondsSinceTrail = 0.f;
     std::vector<float> correlation;
 
     // One pixel per display point, which paint stretches over the strip
