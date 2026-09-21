@@ -94,7 +94,9 @@ namespace Parameters
     inline constexpr std::array<float, 3> timeSpansSeconds { 15.f, 30.f, 60.f };
 
     // How often the editor redraws. On macOS every frame costs a flush of the whole window, whatever
-    // is drawn in it, so the frame rate is what decides how much of the CPU the editor takes.
+    // is drawn in it, so the frame rate is what decides how much of the CPU the editor takes. It is
+    // 60 fps unless it is changed, which is what a meter ought to look like, and 30 fps takes about
+    // two thirds of the CPU time.
     inline const juce::StringArray refreshRateNames { "30 fps", "60 fps" };
     inline constexpr std::array<int, 2> refreshRatesHz { 30, 60 };
 
@@ -189,7 +191,7 @@ namespace Parameters
         layout.add(std::make_unique<Choice>(juce::ParameterID { ID::spectrumSmoothing, 2 }, "Spectrum Smoothing", spectrumSmoothingNames, 2, display));
         layout.add(std::make_unique<Choice>(juce::ParameterID { ID::spectrumResolution, 2 }, "Spectrum Resolution", spectrumResolutionNames, 1, display));
         layout.add(std::make_unique<Choice>(juce::ParameterID { ID::loudnessTarget, 2 }, "Loudness Target", loudnessTargetNames, 1, display));
-        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::refreshRate, 2 }, "Refresh Rate", refreshRateNames, 0, display));
+        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::refreshRate, 2 }, "Refresh Rate", refreshRateNames, 1, display));
         layout.add(std::make_unique<Choice>(juce::ParameterID { ID::timeSpan, 2 }, "Time Span", timeSpanNames, 1, display));
         layout.add(std::make_unique<Choice>(juce::ParameterID { ID::historyShow, 2 }, "History Shows", meterViewNames, peakAndRmsMeters, display));
 

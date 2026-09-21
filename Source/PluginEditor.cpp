@@ -17,6 +17,17 @@ namespace
     const juce::Identifier editorHeightProperty { "editorHeight" };
 }
 
+namespace
+{
+    // The order of the tabs. The view that opens first comes first, the two views of the spectrum are
+    // side by side, and so are the three views of the timeline, of which the loudness matters most.
+    // The goniometer, the only view of the stereo image, is at the end, beside the correlation. The
+    // values of the parameter are in another order, which is that of version 2's first builds, and
+    // cannot change without saved sessions opening on the wrong view.
+    constexpr std::array<int, 5> tabOrder { Parameters::viewSpectrum, Parameters::viewSpectrogram, Parameters::viewLoudness,
+                                            Parameters::viewHistory, Parameters::viewGoniometer };
+}
+
 //==============================================================================
 GriseyAudioProcessorEditor::GriseyAudioProcessorEditor(GriseyAudioProcessor& p) :
     AudioProcessorEditor(&p),
@@ -37,8 +48,12 @@ GriseyAudioProcessorEditor::GriseyAudioProcessorEditor(GriseyAudioProcessor& p) 
 
     // The tabs change between the views
     addAndMakeVisible(tabs);
-    tabs.setTabs(mainViewNames);
-    tabs.onChange = [this](int id) { mainViewAttachment.setValueAsCompleteGesture((float)id); };
+    juce::StringArray tabNames;
+    for (int viewId : tabOrder)
+        tabNames.add(mainViewNames[viewId]);
+
+    tabs.setTabs(tabNames);
+    tabs.onChange = [this](int tab) { mainViewAttachment.setValueAsCompleteGesture((float)tabOrder[(size_t)tab]); };
 
     addChildComponent(goniometerView);
     addChildComponent(spectrumView);
@@ -385,7 +400,7 @@ void GriseyAudioProcessorEditor::updateMeters(float elapsedSeconds)
 //==============================================================================
 void GriseyAudioProcessorEditor::showMainView(int viewId)
 {
-    tabs.setSelection(viewId);
+    tabs.setSelection((int)std::distance(tabOrder.begin(), std::find(tabOrder.begin(), tabOrder.end(), viewId)));
     controlBar.showView(viewId);
 
     // The dip in the bottom bar follows the width of the view's controls

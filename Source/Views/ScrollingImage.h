@@ -58,7 +58,8 @@ public:
         const float scaleX = (float)area.getWidth() / (float)width;
         const int split = juce::roundToInt((float)(width - writeX) * scaleX);
 
-        g.setImageResamplingQuality(juce::Graphics::lowResamplingQuality);
+        // A column is wider than a pixel when the span is short, and would show as a block without this
+        g.setImageResamplingQuality(juce::Graphics::mediumResamplingQuality);
         g.drawImage(image, area.getX(), area.getY(), split, area.getHeight(), writeX, 0, width - writeX, height);
 
         if (writeX > 0)

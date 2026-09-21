@@ -14,12 +14,17 @@ class SpectrogramView : public juce::Component
 {
 public:
     // The levels that the darkest and the brightest colors stand for
-    static constexpr float minDecibels = -96.f;
-    static constexpr float maxDecibels = -6.f;
+    // The picture shows 66 dB. With more, as it had, even what is quiet is lit, and nothing is dark.
+    static constexpr float minDecibels = -84.f;
+    static constexpr float maxDecibels = -18.f;
+
+    // Raising the level's place in that range to this power keeps what is quiet dark, and leaves the
+    // light for what is loud
+    static constexpr float contrast = 1.5f;
 
     // What is recorded for every slot: the level at this many frequencies, spaced logarithmically.
     // The picture is made from it at whatever height the view has.
-    static constexpr int numRows = 256;
+    static constexpr int numRows = 512;
 
     explicit SpectrogramView(SpectrumSource&);
 

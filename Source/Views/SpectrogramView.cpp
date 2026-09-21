@@ -7,14 +7,18 @@ SpectrogramView::SpectrogramView(SpectrumSource& spectrumSource) : source(spectr
     display.numPoints = numRows;
     pending.fill(SpectrumEngine::silenceDb);
 
-    // From the black of the display through the deep and the bright blue to the yellow of the signal
-    // and on to white, so that the lightness rises with the level
+    // Like the spectrum, the picture is dark, and what is loud is a light in it. What is quiet is a hint of the
+    // blue of the meters, and then the level rises through the amber of the signal to its yellow and on to a
+    // warm white, so that the lightness rises with the level all the way. The blue meets the amber while both
+    // are dark: a bright blue beside a bright yellow makes a grey green of everything between them.
     juce::ColourGradient gradient;
     gradient.addColour(0.0, Theme::displayTop);
-    gradient.addColour(0.3, Theme::secondDeep);
-    gradient.addColour(0.55, Theme::second);
-    gradient.addColour(0.82, Theme::accent);
-    gradient.addColour(1.0, juce::Colours::white);
+    gradient.addColour(0.2, juce::Colour(0xff08121d));
+    gradient.addColour(0.4, Theme::meterDeep);
+    gradient.addColour(0.56, juce::Colour(0xff50381a));
+    gradient.addColour(0.74, juce::Colour(0xffbd7d20));
+    gradient.addColour(0.88, Theme::accent);
+    gradient.addColour(1.0, juce::Colour(0xfffff1c8));
 
     for (size_t i = 0; i < colourTable.size(); ++i)
         colourTable[i] = gradient.getColourAtPosition((double)i / (double)(colourTable.size() - 1));
@@ -77,7 +81,7 @@ void SpectrogramView::record(int numNewSlots, bool hasNewSpectra, float tiltDbPe
         for (size_t row = 0; row < column.size(); ++row)
         {
             const float proportion = juce::jlimit(0.f, 1.f, (pending[row] - minDecibels) / (maxDecibels - minDecibels));
-            column[row] = (juce::uint8)juce::roundToInt(proportion * 255.f);
+            column[row] = (juce::uint8)juce::roundToInt(std::pow(proportion, contrast) * 255.f);
         }
 
         lastColumn = column;

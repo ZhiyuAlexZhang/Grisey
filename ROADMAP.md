@@ -87,9 +87,10 @@ costs about 0.15% of one core at 48 kHz.
       - JUCE's Metal layer renderer (`JUCE_COREGRAPHICS_RENDER_WITH_MULTIPLE_PAINT_CALLS`) and an
         attached `OpenGLContext` were both worse, and a `juce::Timer` was worse than vblank
         callbacks that skip frames.
-      - The frame rate is what decides the cost, so it is a setting: 30 frames per second by
-        default (10-15% of a core per view), or 60 (14-26%). The version 1 style interface took
-        20-39% at 60 in a smaller window. An idle editor takes about 4%.
+      - The frame rate is what decides the cost, so it is a setting: 60 frames per second by
+        default (14-26% of a core per view), which is what a meter ought to look like, or 30
+        (10-15%). The version 1 style interface took 20-39% at 60 in a smaller window. An idle
+        editor takes about 4%.
 - [x] One timeline for the spectrogram, the history and the loudness (`Source/Views/Timeline.h`).
       The spectrogram used to record only while it was the view that was showing, so it fell
       behind the others and had a hole for every time it was hidden, and the three views each
