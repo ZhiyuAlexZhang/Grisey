@@ -1,6 +1,10 @@
 # Grisey
 
-Grisey is a free, open-source metering plugin for mixing and mastering. One resizable window shows the level, the loudness, the spectrum, the stereo image, and the phase correlation of what is playing through it. It runs as a VST3, AU, or CLAP plugin, or as a standalone app, on macOS and Windows.
+Grisey is a free, open-source metering suite for mixing and mastering: level, loudness, true peak, spectrum, spectrogram, stereo image, and phase correlation, all in one resizable window. It sets out to be state of the art, the kind of metering that you would expect to pay for, measured to the published standards (ITU-R BS.1770 and EBU R 128) and tested against them, and free for everyone.
+
+It is made for the community, and made to be learned from. The measurement code is kept apart from the interface, written to be read, and covered by tests, and the [roadmap](ROADMAP.md) records why things are built the way they are, with the measurements behind each decision. If you want to know how a loudness meter, a true peak detector, or a spectrum analyzer really works, the source is there to show you. Questions, ideas, and pull requests are welcome.
+
+It runs as a VST3, AU, or CLAP plugin, or as a standalone app, on macOS and Windows.
 
 **Status:** version 2.0 is in beta. It has been tested as a standalone app and in JUCE's AudioPluginHost on macOS. It has not yet been tried in every host, or much on Windows, so reports from either are welcome in the [issues](https://github.com/RealAlexZ/MultiMeter/issues).
 
