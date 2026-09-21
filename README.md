@@ -1,10 +1,8 @@
 # Grisey
 
-Grisey was called MultiMeter up to version 1. Sessions that were saved with MultiMeter open with Grisey in its place, with their settings.
+Grisey is a free, open-source metering plugin for mixing and mastering. One resizable window shows the level, the loudness, the spectrum, the stereo image, and the phase correlation of what is playing through it. It runs as a VST3, AU, or CLAP plugin, or as a standalone app, on macOS and Windows.
 
-## Overview
-
-Grisey, a cutting-edge AU/VST3/CLAP audio analyzer, caters to audio engineers, producers, and musicians who seek precision and versatility. Leveraging the JUCE framework, Grisey delivers a robust array of features for pristine real-time audio analysis, enhancing mixing, mastering, and sound design processes.
+**Status:** version 2.0 is in beta. It has been tested as a standalone app and in JUCE's AudioPluginHost on macOS. It has not yet been tried in every host, or much on Windows, so reports from either are welcome in the [issues](https://github.com/RealAlexZ/MultiMeter/issues).
 
 ![The spectrum view](docs/images/spectrum.png)
 
@@ -48,6 +46,8 @@ Grisey, a cutting-edge AU/VST3/CLAP audio analyzer, caters to audio engineers, p
 
 ## Installing
 
+Grisey needs macOS 10.15 or later (Apple Silicon or Intel), or 64-bit Windows 10 or later.
+
 Download the zip for your system from the [releases page](https://github.com/RealAlexZ/MultiMeter/releases), and copy what you need:
 
 | | macOS | Windows |
@@ -88,6 +88,12 @@ To run the unit tests:
 ctest --test-dir build -C Release --output-on-failure
 ```
 
+## Developing
+
+[ROADMAP.md](ROADMAP.md) records what version 2.0 changed and why, with the measurements behind the decisions, and what is still to do.
+
+The measurement code in `Source/Engine` does not depend on the interface, and is covered by the unit tests, which include the synthesized test signals of EBU Tech 3341 and Tech 3342.
+
 To save a picture of the editor running a test signal, without opening a host:
 
 ```bash
@@ -99,19 +105,17 @@ Parameters can be set by their IDs, for example `spectrumChannels=1`, and `size=
 size of the editor. The tool's window ignores the mouse, so that it cannot take a click that was
 meant for something else.
 
-## Roadmap
+## The name, and version 1
 
-Version 2.0 is in progress. See [ROADMAP.md](ROADMAP.md) for the plan.
+Grisey is named after Gérard Grisey, the composer who made the spectrum of a sound the material of his music.
+
+Up to version 1 it was called MultiMeter. Hosts know a plugin by its codes rather than by its name, and Grisey has kept MultiMeter's, so a session that was saved with MultiMeter opens with Grisey in its place, with its settings. For the same reason the two cannot be installed side by side.
 
 ## Licence and credits
 
 Grisey is free software under the GPLv3 (see [LICENSE.md](LICENSE.md)). It is built with
-[JUCE](https://juce.com), used under the AGPLv3, and
+[JUCE](https://juce.com) 9, used under the AGPLv3, and
 [clap-juce-extensions](https://github.com/free-audio/clap-juce-extensions).
 
 The look of the interface is inspired by FabFilter's plugins. Grisey is an independent project:
 it is not made, endorsed, or supported by FabFilter, and it uses none of their artwork or code.
-
-## Dependencies
-- **JUCE:** 9.0.2
-- **clap-juce-extensions**
