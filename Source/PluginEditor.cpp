@@ -65,6 +65,9 @@ GriseyAudioProcessorEditor::GriseyAudioProcessorEditor(GriseyAudioProcessor& p) 
     // Freezing is for a moment's look, so it is not a setting that is saved
     freezeButton = &controlBar.addButton(ControlBar::views({ viewSpectrum, viewSpectrogram }), "Freeze", true, [] {});
 
+    // The views that show time share one timeline, so they share its span
+    controlBar.addMenu(ControlBar::views({ viewSpectrogram, viewHistory, viewLoudness }), apvts, ID::timeSpan, "Time span:");
+
     controlBar.addMenu(ControlBar::views({ viewLoudness }), apvts, ID::loudnessTarget, "Target:");
     controlBar.addButton(ControlBar::views({ viewLoudness }), "Reset", false, [this]
     {
@@ -325,11 +328,18 @@ void GriseyAudioProcessorEditor::updateMeters(float elapsedSeconds)
     const float maxTruePeakDb = toDecibels(juce::jmax(truePeak.maxPeak[0], truePeak.maxPeak[1]));
     loudnessSummary.update(loudness, maxTruePeakDb, target, elapsedSeconds);
 
-    // These views keep a history, so they record whichever view is showing
-    loudnessView.update(loudness, truePeakDb, maxTruePeakDb, target, audioRunning, elapsedSeconds);
+    // The spectrogram, the history and the loudness share one timeline. They all record in every
+    // update, whichever view is showing, so that the same moment is in the same place in all of them.
+    // While no audio arrives the clock stands still, and so do all three.
+    const int numNewSlots = timelineClock.advance(elapsedSeconds, audioRunning);
+    const float timeSpan = valueAt(timeSpansSeconds, getChoice(ID::timeSpan));
 
-    if (audioRunning)
-        historyView.update(juce::jmax(levels.peakDb[0], levels.peakDb[1]), juce::jmax(levels.rmsDb[0], levels.rmsDb[1]), elapsedSeconds);
+    loudnessView.setSpan(timeSpan);
+    historyView.setSpan(timeSpan);
+    spectrogramView.setSpan(timeSpan);
+
+    loudnessView.update(loudness, truePeakDb, maxTruePeakDb, target, numNewSlots, elapsedSeconds);
+    historyView.record(numNewSlots, juce::jmax(levels.peakDb[0], levels.peakDb[1]), juce::jmax(levels.rmsDb[0], levels.rmsDb[1]));
 
     // Only the visible view needs the samples themselves
     if (goniometerView.isVisible())
@@ -339,13 +349,16 @@ void GriseyAudioProcessorEditor::updateMeters(float elapsedSeconds)
         goniometerView.update(audioProcessor.sampleRingBuffer, elapsedSeconds, mode, persistence, getValue(ID::goniometerScale) / 100.f);
     }
 
-    if (spectrumView.isVisible() || spectrogramView.isVisible())
+    // The spectra are analyzed in every update, because the spectrogram records them whether it is
+    // showing or not. Two FFTs cost very little beside drawing a frame.
     {
-        // While frozen the spectra stay as they are, but a change of setting still shows
-        const bool frozen = freezeButton != nullptr && freezeButton->getToggleState();
         const int order = valueAt(spectrumResolutionOrders, getChoice(ID::spectrumResolution));
         const float tilt = valueAt(spectrumTiltsDbPerOctave, getChoice(ID::spectrumTilt));
-        const bool hasNewSpectra = !frozen && spectrumSource.update(elapsedSeconds, order);
+        const bool hasNewSpectra = spectrumSource.update(elapsedSeconds, order);
+
+        // While frozen the pictures stand still, but the recording carries on underneath
+        const bool frozen = freezeButton != nullptr && freezeButton->getToggleState();
+        spectrogramView.record(numNewSlots, hasNewSpectra, tilt, frozen);
 
         if (spectrumView.isVisible())
         {
@@ -354,11 +367,7 @@ void GriseyAudioProcessorEditor::updateMeters(float elapsedSeconds)
             spectrumSettings.tiltDbPerOctave = tilt;
             spectrumSettings.smoothingOctaves = valueAt(spectrumSmoothingOctaves, getChoice(ID::spectrumSmoothing));
             spectrumSettings.peakHold = isOn(ID::spectrumPeakHold);
-            spectrumView.update(hasNewSpectra, spectrumSettings);
-        }
-        else if (hasNewSpectra)
-        {
-            spectrogramView.addColumn(tilt);
+            spectrumView.update(hasNewSpectra && !frozen, spectrumSettings);
         }
     }
 }

@@ -29,6 +29,7 @@ namespace Parameters
         inline const juce::String spectrumPeakHold { "spectrumPeakHold" };
         inline const juce::String loudnessTarget { "loudnessTarget" };
         inline const juce::String refreshRate { "refreshRate" };
+        inline const juce::String timeSpan { "timeSpan" };
     }
 
     // The options of each choice parameter, and the values that they stand for
@@ -85,6 +86,10 @@ namespace Parameters
     // The loudness that common platforms and standards ask for. 0 stands for no target.
     inline const juce::StringArray loudnessTargetNames { "Off", "-14 LUFS Streaming", "-16 LUFS Podcast", "-23 LUFS EBU R 128", "-24 LKFS ATSC A/85" };
     inline constexpr std::array<float, 5> loudnessTargetsLufs { 0.f, -14.f, -16.f, -23.f, -24.f };
+
+    // How much time the spectrogram, the history and the loudness show. They share one timeline.
+    inline const juce::StringArray timeSpanNames { "15 s", "30 s", "60 s" };
+    inline constexpr std::array<float, 3> timeSpansSeconds { 15.f, 30.f, 60.f };
 
     // How often the editor redraws. On macOS every frame costs a flush of the whole window, whatever
     // is drawn in it, so the frame rate is what decides how much of the CPU the editor takes.
@@ -176,6 +181,7 @@ namespace Parameters
         layout.add(std::make_unique<Choice>(juce::ParameterID { ID::spectrumResolution, 2 }, "Spectrum Resolution", spectrumResolutionNames, 1, display));
         layout.add(std::make_unique<Choice>(juce::ParameterID { ID::loudnessTarget, 2 }, "Loudness Target", loudnessTargetNames, 1, display));
         layout.add(std::make_unique<Choice>(juce::ParameterID { ID::refreshRate, 2 }, "Refresh Rate", refreshRateNames, 0, display));
+        layout.add(std::make_unique<Choice>(juce::ParameterID { ID::timeSpan, 2 }, "Time Span", timeSpanNames, 1, display));
 
         layout.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID { ID::spectrumPeakHold, 2 }, "Spectrum Peak Hold", false,
             juce::AudioParameterBoolAttributes().withAutomatable(false)));

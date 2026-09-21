@@ -97,7 +97,8 @@ if(GRISEY_BUILD_TESTS)
         Tests/Main.cpp
         Tests/ProcessorTests.cpp
         Tests/LoudnessTests.cpp
-        Tests/SpectrumTests.cpp)
+        Tests/SpectrumTests.cpp
+        Tests/TimelineTests.cpp)
 
     add_test(NAME GriseyTests COMMAND GriseyTests)
 

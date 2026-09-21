@@ -32,7 +32,7 @@ void LoudnessView::paint(juce::Graphics& g)
 }
 
 void LoudnessView::update(const LoudnessMeter::Readings& newReadings, float truePeakDb, float maxTruePeakDb,
-                          float targetLufs, bool audioRunning, float elapsedSeconds)
+                          float targetLufs, int numNewSlots, float elapsedSeconds)
 {
     readings = newReadings;
     maxTruePeak = maxTruePeakDb;
@@ -50,17 +50,8 @@ void LoudnessView::update(const LoudnessMeter::Readings& newReadings, float true
     recentTruePeaks[recentTruePeakIndex] = juce::jmax(recentTruePeaks[recentTruePeakIndex], truePeakDb);
     recentTruePeak = *std::max_element(recentTruePeaks.begin(), recentTruePeaks.end());
 
-    if (audioRunning)
-    {
-        secondsSinceHistoryPoint += (double)elapsedSeconds;
-
-        while (secondsSinceHistoryPoint >= historyIntervalSeconds)
-        {
-            secondsSinceHistoryPoint -= historyIntervalSeconds;
-            history[(size_t)historyIndex] = { readings.shortTerm, readings.momentary };
-            historyIndex = (historyIndex + 1) % historyLength;
-        }
-    }
+    for (int slot = 0; slot < numNewSlots; ++slot)
+        history.push({ readings.shortTerm, readings.momentary });
 
     secondsSinceRepaint += (double)elapsedSeconds;
     if (secondsSinceRepaint >= Theme::readoutIntervalSeconds)
@@ -72,10 +63,17 @@ void LoudnessView::update(const LoudnessMeter::Readings& newReadings, float true
 
 void LoudnessView::clearHistory()
 {
-    history.fill({});
-    historyIndex = 0;
-    secondsSinceHistoryPoint = 0.0;
+    history.clear();
     repaint();
+}
+
+void LoudnessView::setSpan(float seconds)
+{
+    if (!juce::exactlyEqual(seconds, spanSeconds))
+    {
+        spanSeconds = seconds;
+        repaint();
+    }
 }
 
 float LoudnessView::getReferenceLufs() const
@@ -172,45 +170,41 @@ void LoudnessView::paintHistory(juce::Graphics& g, juce::Rectangle<int> area)
         g.drawText(juce::String(juce::roundToInt(lufs)), juce::Rectangle<float>(plot.getRight() + 4.f, y - 7.f, 30.f, 14.f), juce::Justification::centredLeft);
     }
 
-    // Mark the time along the bottom
-    const double windowSeconds = historyLength * historyIntervalSeconds;
-    for (int seconds = 0; seconds <= (int)windowSeconds; seconds += 15)
-    {
-        const float x = plot.getRight() - plot.getWidth() * (float)(seconds / windowSeconds);
-        g.setColour(Theme::grid);
-        g.fillRect(x, plot.getY(), 1.f, plot.getHeight());
+    Timeline::drawTimeAxis(g, plot.toNearestInt(), spanSeconds);
 
-        g.setColour(Theme::textFaint);
-        const auto text = seconds == 0 ? juce::String("now") : juce::String(juce::CharPointer_UTF8("\xe2\x88\x92")) + juce::String(seconds) + " s";
-        g.drawText(text, juce::Rectangle<float>(50.f, 14.f).withCentre({ juce::jmin(x, plot.getRight() - 14.f), plot.getBottom() + 10.f }), juce::Justification::centred);
-    }
-
-    // Build the paths of the history, from the oldest point to the newest
+    // Build the paths of the history, from the oldest slot of the span to the newest. The loudness
+    // changes ten times a second, so every third slot is enough to draw it.
     juce::Path shortTermPath, momentaryPath;
     bool shortTermStarted = false, momentaryStarted = false;
     float lastX = plot.getX();
 
-    for (int i = 0; i < historyLength; ++i)
-    {
-        const auto& point = history[(size_t)((historyIndex + i) % historyLength)];
-        const float x = plot.getX() + plot.getWidth() * (float)i / (float)(historyLength - 1);
+    const int numSlots = Timeline::slotsIn(spanSeconds);
+    const int step = 3;
 
-        if (isLoudness(point.shortTerm))
+    for (int age = numSlots - 1; age >= 0; age -= (age > step ? step : 1))
+    {
+        const auto* point = history.fromNewest(age);
+        if (point == nullptr)
+            continue;
+
+        const float x = plot.getRight() - plot.getWidth() * (float)age / (float)numSlots;
+
+        if (isLoudness(point->shortTerm))
         {
             if (!shortTermStarted)
                 shortTermPath.startNewSubPath(x, plot.getBottom());
 
-            shortTermPath.lineTo(x, yOf(point.shortTerm));
+            shortTermPath.lineTo(x, yOf(point->shortTerm));
             shortTermStarted = true;
             lastX = x;
         }
 
-        if (isLoudness(point.momentary))
+        if (isLoudness(point->momentary))
         {
             if (momentaryStarted)
-                momentaryPath.lineTo(x, yOf(point.momentary));
+                momentaryPath.lineTo(x, yOf(point->momentary));
             else
-                momentaryPath.startNewSubPath(x, yOf(point.momentary));
+                momentaryPath.startNewSubPath(x, yOf(point->momentary));
 
             momentaryStarted = true;
         }

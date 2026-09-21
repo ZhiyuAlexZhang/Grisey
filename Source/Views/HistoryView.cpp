@@ -8,7 +8,8 @@ float HistoryView::yOf(float decibels) const
 
 void HistoryView::resized()
 {
-    plot = getLocalBounds().withTrimmedRight(34).withTrimmedBottom(20).withTrimmedTop(8).withTrimmedLeft(8);
+    // The same margins as the spectrogram, so that a moment is at the same place in both
+    plot = getLocalBounds().withTrimmedLeft(34).withTrimmedRight(34).withTrimmedTop(8).withTrimmedBottom(20);
 
     // The same colors as the level meters: blue through the working range, yellow near full scale, red above it
     auto proportionOf = [](float decibels) { return (double)juce::jmap(decibels, minDb, maxDb, 0.f, 1.f); };
@@ -19,7 +20,7 @@ void HistoryView::resized()
     gradient.addColour(proportionOf(0.f), Theme::over);
 
     // The background of each row is what Theme::fillDisplay() draws at its height
-    const juce::ColourGradient background(Theme::displayTop, 0.f, 0.25f * (float)getHeight(), Theme::displayBottom, 0.f, (float)getHeight(), false);
+    const juce::ColourGradient background(Theme::displayTop, 0.f, 0.f, Theme::displayBottom, 0.f, 1.f, false);
 
     const int height = juce::jmax(1, plot.getHeight());
     rmsColours.resize((size_t)height);
@@ -37,42 +38,72 @@ void HistoryView::resized()
         peakColours[(size_t)row] = behind.interpolatedWith(colour, 0.3f);
     }
 
-    image.setSize(plot.getWidth(), plot.getHeight(), Theme::display);
-    clearImage();
+    rebuildImage();
 }
 
-void HistoryView::clearImage()
+void HistoryView::setSpan(float seconds)
 {
-    // Every column starts as background
-    for (int column = 0; column < image.getWidth(); ++column)
-        image.addColumn([this](int row) { return backgroundColours[(size_t)row]; });
+    if (!juce::exactlyEqual(seconds, spanSeconds))
+    {
+        spanSeconds = seconds;
+        rebuildImage();
+        repaint();
+    }
 }
 
-void HistoryView::update(float peakDb, float rmsDb, float elapsedSeconds)
+void HistoryView::record(int numNewSlots, float peakDb, float rmsDb)
 {
-    columnPeak = juce::jmax(columnPeak, peakDb);
-    columnRms = juce::jmax(columnRms, rmsDb);
-    secondsInColumn += (double)elapsedSeconds;
+    pending.peak = juce::jmax(pending.peak, peakDb);
+    pending.rms = juce::jmax(pending.rms, rmsDb);
 
-    const double secondsPerColumn = windowSeconds / (double)juce::jmax(1, image.getWidth());
-    if (secondsInColumn < secondsPerColumn)
+    if (numNewSlots <= 0)
         return;
 
-    secondsInColumn = std::fmod(secondsInColumn, secondsPerColumn);
+    // A frame that took long completes more than one slot, which all show the same levels
+    for (int slot = 0; slot < numNewSlots; ++slot)
+    {
+        history.push(pending);
+        addColumn(pending);
+    }
 
-    const int peakRow = juce::roundToInt(yOf(columnPeak)) - plot.getY();
-    const int rmsRow = juce::roundToInt(yOf(columnRms)) - plot.getY();
-    const bool hasPeak = columnPeak > minDb, hasRms = columnRms > minDb;
+    pending = {};
+    repaint(plot);
+}
+
+void HistoryView::addColumn(const Levels& levels)
+{
+    if (rmsColours.empty())
+        return;
+
+    const int peakRow = juce::roundToInt(yOf(levels.peak)) - plot.getY();
+    const int rmsRow = juce::roundToInt(yOf(levels.rms)) - plot.getY();
+    const bool hasPeak = levels.peak > minDb, hasRms = levels.rms > minDb;
+    const int lastRow = (int)rmsColours.size() - 1;
 
     image.addColumn([&](int row)
     {
-        return hasRms && row >= rmsRow ? rmsColours[(size_t)row]
-             : hasPeak && row >= peakRow ? peakColours[(size_t)row]
-             : backgroundColours[(size_t)row];
+        const auto index = (size_t)juce::jmin(row, lastRow);
+        return hasRms && row >= rmsRow ? rmsColours[index]
+             : hasPeak && row >= peakRow ? peakColours[index]
+             : backgroundColours[index];
     });
+}
 
-    columnPeak = columnRms = -200.f;
-    repaint(plot);
+void HistoryView::rebuildImage()
+{
+    if (plot.isEmpty())
+        return;
+
+    // One column for every slot of the span, from the oldest to the newest. A slot that
+    // nothing was recorded in is background.
+    const int numSlots = Timeline::slotsIn(spanSeconds);
+    image.setSize(numSlots, plot.getHeight(), Theme::display);
+
+    for (int age = numSlots - 1; age >= 0; --age)
+    {
+        const auto* levels = history.fromNewest(age);
+        addColumn(levels != nullptr ? *levels : Levels());
+    }
 }
 
 void HistoryView::paint(juce::Graphics& g)
@@ -92,17 +123,7 @@ void HistoryView::paint(juce::Graphics& g)
         g.drawText(juce::String(decibels), juce::Rectangle<float>((float)plot.getRight() + 4.f, y - 7.f, 28.f, 14.f), juce::Justification::centredLeft);
     }
 
-    // Mark the time along the bottom
-    for (int seconds = 0; seconds <= (int)windowSeconds; seconds += 5)
-    {
-        const float x = (float)plot.getRight() - (float)plot.getWidth() * (float)seconds / (float)windowSeconds;
-        g.setColour(juce::Colours::white.withAlpha(0.07f));
-        g.fillRect(x, (float)plot.getY(), 1.f, (float)plot.getHeight());
-
-        g.setColour(Theme::textFaint);
-        const auto text = seconds == 0 ? juce::String("now") : juce::String(juce::CharPointer_UTF8("\xe2\x88\x92")) + juce::String(seconds) + " s";
-        g.drawText(text, juce::Rectangle<float>(50.f, 14.f).withCentre({ juce::jmin(x, (float)plot.getRight() - 14.f), (float)plot.getBottom() + 10.f }), juce::Justification::centred);
-    }
+    Timeline::drawTimeAxis(g, plot, spanSeconds);
 
     auto legend = plot.withTrimmedLeft(10).withTrimmedTop(6).removeFromTop(14);
     g.setFont(Theme::labelFont());
@@ -114,6 +135,7 @@ void HistoryView::paint(juce::Graphics& g)
 
 void HistoryView::mouseDown(const juce::MouseEvent&)
 {
-    clearImage();
+    history.clear();
+    rebuildImage();
     repaint();
 }

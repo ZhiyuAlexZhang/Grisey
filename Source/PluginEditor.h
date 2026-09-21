@@ -23,6 +23,7 @@
 #include "Views/LoudnessView.h"
 #include "Views/LevelMeters.h"
 #include "Views/LoudnessSummary.h"
+#include "Views/Timeline.h"
 
 //==============================================================================
 class GriseyAudioProcessorEditor  : public juce::AudioProcessorEditor
@@ -98,6 +99,9 @@ private:
 
     // Set by the reset items of the menus, and cleared by the next update
     bool resetTicksRequested = false;
+
+    // The clock of the timeline that the spectrogram, the history and the loudness share
+    Timeline::Clock timelineClock;
 
     // Timing of the updates, in seconds
     double lastUpdateTime = -1.0;

@@ -4,6 +4,8 @@
 SpectrogramView::SpectrogramView(SpectrumSource& spectrumSource) : source(spectrumSource)
 {
     setOpaque(true);
+    display.numPoints = numRows;
+    pending.fill(SpectrumEngine::silenceDb);
 
     // From the black of the display through the deep and the bright blue to the yellow of the signal
     // and on to white, so that the lightness rises with the level
@@ -26,11 +28,108 @@ float SpectrogramView::yOf(double frequency) const
 
 void SpectrogramView::resized()
 {
-    plot = getLocalBounds().withTrimmedLeft(34).withTrimmedTop(8).withTrimmedBottom(8).withTrimmedRight(8);
+    // The same margins as the history, so that a moment is at the same place in both
+    plot = getLocalBounds().withTrimmedLeft(34).withTrimmedRight(34).withTrimmedTop(8).withTrimmedBottom(20);
+    rebuildImage();
+}
 
-    // One display point for every row of the image
-    image.setSize(plot.getWidth(), plot.getHeight(), Theme::displayTop);
-    display.numPoints = juce::jmax(2, plot.getHeight());
+void SpectrogramView::setSpan(float seconds)
+{
+    if (!juce::exactlyEqual(seconds, spanSeconds))
+    {
+        spanSeconds = seconds;
+        rebuildImage();
+        repaint();
+    }
+}
+
+void SpectrogramView::record(int numNewSlots, bool hasNewSpectra, float tiltDbPerOctave, bool frozen)
+{
+    // Releasing the picture brings it up to date with what was recorded while it stood still
+    if (isFrozen && !frozen)
+    {
+        isFrozen = false;
+        rebuildImage();
+        repaint();
+    }
+
+    isFrozen = frozen;
+
+    if (hasNewSpectra)
+    {
+        display.tiltDbPerOctave = tiltDbPerOctave;
+        source.getEngine().render(SpectrumEngine::Curve::mid, display, source.getSampleRate(), spectrum);
+
+        // A slot shows the highest level that each frequency reached during it
+        for (size_t row = 0; row < pending.size(); ++row)
+            pending[row] = juce::jmax(pending[row], spectrum[row]);
+
+        hasPending = true;
+    }
+
+    if (numNewSlots <= 0)
+        return;
+
+    Column column = lastColumn;
+
+    if (hasPending)
+    {
+        for (size_t row = 0; row < column.size(); ++row)
+        {
+            const float proportion = juce::jlimit(0.f, 1.f, (pending[row] - minDecibels) / (maxDecibels - minDecibels));
+            column[row] = (juce::uint8)juce::roundToInt(proportion * 255.f);
+        }
+
+        lastColumn = column;
+    }
+
+    // A frame that took long completes more than one slot, which all show the same spectrum
+    for (int slot = 0; slot < numNewSlots; ++slot)
+    {
+        history.push(column);
+
+        if (!isFrozen)
+            addColumn(column);
+    }
+
+    pending.fill(SpectrumEngine::silenceDb);
+    hasPending = false;
+
+    if (!isFrozen)
+        repaint(plot);
+}
+
+void SpectrogramView::addColumn(const Column& column)
+{
+    // The first recorded row is the lowest frequency, which belongs at the bottom of the image
+    const int height = image.getHeight();
+    const float rowsPerPixel = height > 1 ? (float)(numRows - 1) / (float)(height - 1) : 0.f;
+
+    image.addColumn([&](int pixel)
+    {
+        const auto row = (size_t)juce::jlimit(0, numRows - 1, juce::roundToInt((float)(height - 1 - pixel) * rowsPerPixel));
+        return colourTable[column[row]];
+    });
+}
+
+void SpectrogramView::rebuildImage()
+{
+    if (plot.isEmpty())
+        return;
+
+    // One column for every slot of the span, from the oldest to the newest. A slot that
+    // nothing was recorded in is the color of silence.
+    const int numSlots = Timeline::slotsIn(spanSeconds);
+    image.setSize(numSlots, plot.getHeight(), Theme::displayTop);
+
+    Column silence;
+    silence.fill(0);
+
+    for (int age = numSlots - 1; age >= 0; --age)
+    {
+        const auto* column = history.fromNewest(age);
+        addColumn(column != nullptr ? *column : silence);
+    }
 }
 
 void SpectrogramView::paint(juce::Graphics& g)
@@ -52,6 +151,8 @@ void SpectrogramView::paint(juce::Graphics& g)
         g.drawText(text, juce::Rectangle<float>(0.f, y - 7.f, (float)plot.getX() - 6.f, 14.f), juce::Justification::centredRight);
     }
 
+    Timeline::drawTimeAxis(g, plot, spanSeconds);
+
     if (hoverY.has_value())
     {
         const double proportion = (double)(plot.getBottom() - *hoverY) / (double)juce::jmax(1, plot.getHeight());
@@ -69,23 +170,6 @@ void SpectrogramView::paint(juce::Graphics& g)
         g.setColour(Theme::text);
         g.drawText(text, box, juce::Justification::centred);
     }
-}
-
-void SpectrogramView::addColumn(float tiltDbPerOctave)
-{
-    display.tiltDbPerOctave = tiltDbPerOctave;
-    source.getEngine().render(SpectrumEngine::Curve::mid, display, source.getSampleRate(), column);
-
-    // The first display point is the lowest frequency, which belongs at the bottom of the image
-    const int height = image.getHeight();
-    image.addColumn([&](int row)
-    {
-        const float decibels = column[(size_t)juce::jlimit(0, (int)column.size() - 1, height - 1 - row)];
-        const float proportion = juce::jlimit(0.f, 1.f, (decibels - minDecibels) / (maxDecibels - minDecibels));
-        return colourTable[(size_t)juce::roundToInt(proportion * (float)(colourTable.size() - 1))];
-    });
-
-    repaint(plot);
 }
 
 void SpectrogramView::mouseMove(const juce::MouseEvent& e)
@@ -109,6 +193,8 @@ void SpectrogramView::mouseExit(const juce::MouseEvent&)
 
 void SpectrogramView::mouseDown(const juce::MouseEvent&)
 {
-    image.clear(Theme::displayTop);
+    lastColumn.fill(0);
+    history.clear();
+    rebuildImage();
     repaint();
 }

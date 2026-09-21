@@ -90,10 +90,19 @@ costs about 0.15% of one core at 48 kHz.
       - The frame rate is what decides the cost, so it is a setting: 30 frames per second by
         default (10-15% of a core per view), or 60 (14-26%). The version 1 style interface took
         20-39% at 60 in a smaller window. An idle editor takes about 4%.
+- [x] One timeline for the spectrogram, the history and the loudness (`Source/Views/Timeline.h`).
+      The spectrogram used to record only while it was the view that was showing, so it fell
+      behind the others and had a hole for every time it was hidden, and the three views each
+      showed a different stretch of time (one of them depending on the frame rate and the width of
+      the window). Now one clock counts slots of a thirtieth of a second, every view records every
+      slot whether it is showing or not, and all three show the same span, which is a setting (15,
+      30 or 60 s). What is recorded is kept as data, so resizing the window or changing the span
+      draws the pictures again without losing anything. Freezing holds the pictures still while
+      the recording carries on underneath.
 - [ ] Try everything that a picture cannot show, by hand: the menus, the tabs, the readouts under
       the mouse, dragging the knob and the corner of the window, and the reset buttons
-- [ ] The spectrogram and the history are one image pixel per point, so they are a little soft on
-      a high-resolution display
+- [ ] The spectrogram and the history have one image column per slot of the timeline, stretched
+      over the plot, so they are a little soft on a high-resolution display
 
 ## Phase 4: Release
 

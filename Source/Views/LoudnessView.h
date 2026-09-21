@@ -3,18 +3,16 @@
 #include <JuceHeader.h>
 #include "../UI/Theme.h"
 #include "../Engine/LoudnessMeter.h"
+#include "Timeline.h"
 
 //==============================================================================
 // Shows the readings of the LoudnessMeter and the TruePeakDetector as numbers, beside a
 // history of the short-term and the momentary loudness. The readings themselves are made
-// on the audio thread, this component only displays them.
+// on the audio thread, this component only displays them. The history is on the shared
+// timeline, so it records whether the view is showing or not.
 class LoudnessView : public juce::Component
 {
 public:
-    // The history holds a point for every 100 ms, which is how often the loudness changes
-    static constexpr double historyIntervalSeconds = 0.1;
-    static constexpr int historyLength = 600;
-
     // The graph reaches from 27 LU below the target to 9 LU above it, like the EBU +9 scale
     static constexpr float rangeBelowTarget = 27.f;
     static constexpr float rangeAboveTarget = 9.f;
@@ -30,12 +28,15 @@ public:
     //  - truePeakDb:    the higher channel's true peak since the last update
     //  - maxTruePeakDb: the higher channel's true peak since the last reset
     //  - targetLufs:    the loudness to aim for, or 0 for none
-    //  - audioRunning:  whether audio is arriving, the history stands still when it is not
+    //  - numNewSlots:   how many slots of the timeline have been completed since the last call
     void update(const LoudnessMeter::Readings& readings, float truePeakDb, float maxTruePeakDb,
-                float targetLufs, bool audioRunning, float elapsedSeconds);
+                float targetLufs, int numNewSlots, float elapsedSeconds);
 
     // Forgets the history, for when the loudness meter is reset
     void clearHistory();
+
+    // Sets how much time is shown
+    void setSpan(float seconds);
 
 private:
     struct HistoryPoint
@@ -62,9 +63,8 @@ private:
     double secondsInTruePeakSlot = 0.0;
     float recentTruePeak = -200.f;
 
-    std::array<HistoryPoint, historyLength> history;
-    int historyIndex = 0;
-    double secondsSinceHistoryPoint = 0.0;
+    Timeline::History<HistoryPoint> history;
+    float spanSeconds = 30.f;
 
     // The view is drawn again ten times a second, which is how often its readings change
     double secondsSinceRepaint = 0.0;

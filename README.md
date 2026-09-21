@@ -21,7 +21,7 @@ Grisey is a free, open-source metering plugin for mixing and mastering. One resi
 ### Loudness
 - Momentary, short-term, and integrated loudness, and loudness range, to ITU-R BS.1770-4 and EBU R 128.
 - True peak with 4x oversampling, the peak to loudness ratio (PLR), and the peak to short-term loudness ratio (PSR).
-- A history of the last minute, and delivery targets for streaming, podcasts, EBU R 128, and ATSC A/85.
+- A history graph, and delivery targets for streaming, podcasts, EBU R 128, and ATSC A/85.
 - Tested against the synthesized signals of EBU Tech 3341 and Tech 3342.
 
 ### Spectrum
@@ -33,11 +33,15 @@ Grisey is a free, open-source metering plugin for mixing and mastering. One resi
 ### Spectrogram
 - Frequency content over time, on a logarithmic frequency axis.
 
+### One timeline
+- The spectrogram, the history and the loudness graph share one timeline. They all keep recording whichever view is showing, and they all show the same span of time (15, 30 or 60 s), so the same moment is in the same place when you switch between them.
+- Resizing the window or changing the span keeps what has been recorded.
+
 ### Goniometer
 - The stereo image with phosphor-style persistence, as a Lissajous or a polar plot.
 
 ### History
-- The peak and RMS levels over the last half minute.
+- The peak and RMS levels over time.
 
 ### Interface, formats and settings
 - A resizable interface inspired by FabFilter's plugins, which redraws at 30 or 60 frames per second.
@@ -102,7 +106,8 @@ build/GriseySnapshot_artefacts/Release/GriseySnapshot editor.png 4
 
 The number picks the view (0 goniometer, 1 spectrum, 2 spectrogram, 3 history, 4 loudness).
 Parameters can be set by their IDs, for example `spectrumChannels=1`, and `size=1400x800` sets the
-size of the editor. The tool's window ignores the mouse, so that it cannot take a click that was
+size of the editor. `also=2,3` stops the audio and then saves those views as well, all of the same
+moment, which shows what each view recorded while it was hidden. The tool's window ignores the mouse, so that it cannot take a click that was
 meant for something else.
 
 ## The name, and version 1
