@@ -137,7 +137,7 @@ namespace
 {
     // The widths of the raised tab that holds the name, and of the shoulders on either side of it
     constexpr float nameTabStart = 6.f;
-    constexpr float nameTabWidth = 188.f;
+    constexpr float nameTabWidth = 250.f;
     constexpr float shoulderWidth = 46.f;
 
     // The thickness of the raised edge that runs along the rest of the chrome
@@ -192,10 +192,20 @@ void GriseyAudioProcessorEditor::paintName(juce::Graphics& g, juce::Rectangle<fl
 {
     // The name of the plugin is an outline, not text, so that it is drawn the same on a computer that does
     // not have its typeface. It is finished as a name is on the fallboard of a piano: in silver, a little
-    // lighter at the top than at the bottom, set into the surface, with a flourish on either side of it and
-    // the maker's name beneath it.
+    // lighter at the top than at the bottom, set into the surface, with a flourish on either side of it.
+    // The maker's name is to the left of all that, on the same line. Its place does not depend on the letters
+    // of the product's name, so every plugin of the maker's can have it in the same place.
+    const auto makerFont = Theme::font(Wordmark::makerFontHeight, true).withExtraKerningFactor(Wordmark::makerKerning);
+    const float makerWidth = (float)Theme::textWidth(makerFont, Wordmark::maker);
     const float wordWidth = Wordmark::width * Wordmark::heightInHeader / Wordmark::height;
-    const auto word = tab.withSizeKeepingCentre(wordWidth, Wordmark::heightInHeader).translated(0.f, 0.5f);
+    const float flourish = Wordmark::ruleGap + Wordmark::ruleLength;
+
+    // The whole line is centred in the tab: the maker, a flourish, the name, a flourish
+    const float lineWidth = makerWidth + Wordmark::makerGap + flourish + wordWidth + flourish;
+    const float lineLeft = tab.getCentreX() - 0.5f * lineWidth;
+
+    const auto word = juce::Rectangle<float>(lineLeft + makerWidth + Wordmark::makerGap + flourish, 0.f, wordWidth, Wordmark::heightInHeader)
+                          .withCentre({ lineLeft + makerWidth + Wordmark::makerGap + flourish + 0.5f * wordWidth, tab.getCentreY() + 0.5f });
     const auto placement = juce::RectanglePlacement(juce::RectanglePlacement::stretchToFit)
                                .getTransformToFit({ 0.f, 0.f, Wordmark::width, Wordmark::height }, word);
 
@@ -229,13 +239,9 @@ void GriseyAudioProcessorEditor::paintName(juce::Graphics& g, juce::Rectangle<fl
     g.setGradientFill(juce::ColourGradient(Theme::wordmarkTop, 0.f, word.getY(), Theme::wordmarkBottom, 0.f, word.getBottom(), false));
     g.fillPath(wordmarkOutline, placement);
 
-    // The maker's name is in the room beneath the line that the letters stand on, which the tail of the y
-    // leaves free on the left
-    const auto pocket = juce::Rectangle<float>(word.getX() + Wordmark::pocketLeft * wordWidth, word.getY() + Wordmark::pocketTop * Wordmark::heightInHeader,
-                                               Wordmark::pocketWidth * wordWidth, Wordmark::pocketHeight * Wordmark::heightInHeader);
-    g.setFont(Theme::font(Wordmark::makerFontHeight, true).withExtraKerningFactor(Wordmark::makerKerning));
-    g.setColour(Theme::wordmarkBottom.withAlpha(0.95f));
-    g.drawText(Wordmark::maker, pocket.expanded(6.f, 2.f), juce::Justification::centred);
+    g.setFont(makerFont);
+    g.setColour(Theme::wordmarkBottom.withAlpha(0.9f));
+    g.drawText(Wordmark::maker, juce::Rectangle<float>(lineLeft - 2.f, ruleY - 8.f, makerWidth + 6.f, 16.f), juce::Justification::centredLeft);
 }
 
 void GriseyAudioProcessorEditor::paintBottomBar(juce::Graphics& g, juce::Rectangle<int> area)

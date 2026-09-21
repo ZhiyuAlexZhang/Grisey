@@ -15,15 +15,13 @@ namespace Wordmark
     inline constexpr float ruleLength = 24.0f;
     inline constexpr float diamondSize = 2.2f;
 
-    // The maker's name, and the room for it beneath the line that the letters stand on, clear of the tail of
-    // the last letter, as proportions of the outline's width and height
+    // The maker's name stands to the left of the flourish on the left, on the same line, and this far from
+    // it. Its place does not depend on the letters of the product's name, so that every plugin of the maker's
+    // can have it in the same place.
     inline constexpr const char* maker = "YULANIA";
-    inline constexpr float makerFontHeight = 6.6f;
-    inline constexpr float makerKerning = 0.26f;
-    inline constexpr float pocketLeft = 0.03f;
-    inline constexpr float pocketTop = 0.79f;
-    inline constexpr float pocketWidth = 0.58f;
-    inline constexpr float pocketHeight = 0.23f;
+    inline constexpr float makerFontHeight = 8.0f;
+    inline constexpr float makerKerning = 0.3f;
+    inline constexpr float makerGap = 11.0f;
 
     inline constexpr const char* outline =
         "M73.59 1.27Q69.15 2.38 66.3 6.34Q63.44 10.31 63.44 14.91Q63.44 16.97 63.68 19.11Q63.92 21.25 64.71 23Q68.99 20"

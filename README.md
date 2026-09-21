@@ -136,7 +136,7 @@ Grisey is free software under the GPLv3 (see [LICENSE.md](LICENSE.md)). It is bu
 
 The name in the header is set in Snell Roundhand, and drawn as an outline (`Source/UI/Wordmark.h`,
 `docs/images/wordmark.svg`), so that it looks the same on a computer that does not have the typeface.
-Yulania, beneath it, is the maker's name.
+Yulania, to its left, is the maker's name.
 
 The look of the interface is inspired by FabFilter's plugins. Grisey is an independent project:
 it is not made, endorsed, or supported by FabFilter, and it uses none of their artwork or code.

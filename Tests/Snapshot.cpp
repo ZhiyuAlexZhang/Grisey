@@ -134,7 +134,7 @@ namespace
         // The finish, in points at the height that the name has in the header
         const juce::String maker("YULANIA");
         const float heightInHeader = 32.f, ruleGap = 9.f, ruleLength = 24.f, diamondSize = 2.2f;
-        const float makerFontHeight = 6.6f, makerKerning = 0.26f;
+        const float makerFontHeight = 8.f, makerKerning = 0.3f, makerGap = 11.f;
 
         // Large, so that two decimal places are plenty
         const juce::Font font(juce::FontOptions(typeface, 200.f, juce::Font::plain).withStyle(style));
@@ -146,27 +146,6 @@ namespace
         outline.applyTransform(juce::AffineTransform::translation(-outline.getBounds().getX(), -outline.getBounds().getY()));
 
         const float width = outline.getBounds().getWidth(), height = outline.getBounds().getHeight();
-
-        // The maker's name goes in the room beneath the line that the letters stand on. That line is the lowest
-        // point of the first half of the name, and the room ends where a tail, like that of the y, comes below it.
-        float baseline = 0.f, tailLeft = width;
-        {
-            juce::PathFlatteningIterator point(outline);
-            std::vector<juce::Point<float>> points;
-            while (point.next())
-                points.push_back({ point.x2, point.y2 });
-
-            for (const auto& p : points)
-                if (p.x < 0.5f * width)
-                    baseline = juce::jmax(baseline, p.y);
-
-            for (const auto& p : points)
-                if (p.y > baseline + 0.05f * height)
-                    tailLeft = juce::jmin(tailLeft, p.x);
-        }
-
-        const float pocketLeft = 0.03f, pocketTop = baseline / height + 0.06f;
-        const float pocketWidth = tailLeft / width - 0.05f, pocketHeight = 1.02f - pocketTop;
 
         auto number = [](float value) { return juce::String(value, 2).trimCharactersAtEnd("0").trimCharactersAtEnd("."); };
         const auto data = toSvgData(outline);
@@ -194,15 +173,13 @@ namespace
                << "    inline constexpr float ruleGap = " << literal(ruleGap) << ";\n"
                << "    inline constexpr float ruleLength = " << literal(ruleLength) << ";\n"
                << "    inline constexpr float diamondSize = " << literal(diamondSize) << ";\n\n"
-               << "    // The maker's name, and the room for it beneath the line that the letters stand on, clear of the tail of\n"
-               << "    // the last letter, as proportions of the outline's width and height\n"
+               << "    // The maker's name stands to the left of the flourish on the left, on the same line, and this far from\n"
+               << "    // it. Its place does not depend on the letters of the product's name, so that every plugin of the maker's\n"
+               << "    // can have it in the same place.\n"
                << "    inline constexpr const char* maker = \"" << maker << "\";\n"
                << "    inline constexpr float makerFontHeight = " << literal(makerFontHeight) << ";\n"
                << "    inline constexpr float makerKerning = " << literal(makerKerning) << ";\n"
-               << "    inline constexpr float pocketLeft = " << literal(pocketLeft) << ";\n"
-               << "    inline constexpr float pocketTop = " << literal(pocketTop) << ";\n"
-               << "    inline constexpr float pocketWidth = " << literal(pocketWidth) << ";\n"
-               << "    inline constexpr float pocketHeight = " << literal(pocketHeight) << ";\n\n"
+               << "    inline constexpr float makerGap = " << literal(makerGap) << ";\n\n"
                << "    inline constexpr const char* outline =\n";
 
         for (int start = 0; start < data.length(); start += 110)
@@ -214,19 +191,22 @@ namespace
         //==============================================================================
         // The SVG is in the units of the outline, so a point of the header is this many of them
         const float unit = height / heightInHeader;
-        const float marginX = (ruleGap + ruleLength) * unit + 60.f, marginY = 60.f;
-        const float plateWidth = width + 2.f * marginX, plateHeight = height + 2.f * marginY;
-        const float ruleY = marginY + 0.5f * height;
 
-        // The maker's name as an outline too, in the middle of its room
+        // The maker's name as an outline too
         juce::GlyphArrangement makerGlyphs;
         makerGlyphs.addLineOfText(Theme::font(makerFontHeight * unit, true).withExtraKerningFactor(makerKerning), maker, 0.f, 0.f);
         juce::Path makerOutline;
         makerGlyphs.createPath(makerOutline);
-
-        const juce::Rectangle<float> pocket(marginX + pocketLeft * width, marginY + pocketTop * height, pocketWidth * width, pocketHeight * height);
         const auto makerBounds = makerOutline.getBounds();
-        makerOutline.applyTransform(juce::AffineTransform::translation(pocket.getCentreX() - makerBounds.getCentreX(), pocket.getCentreY() - makerBounds.getCentreY()));
+
+        // The plate holds the same line as the header: the maker, a flourish, the name, a flourish, with the same
+        // space at either end, so the name is not in the middle of it
+        const float edge = 70.f, marginY = 60.f;
+        const float marginX = edge + makerBounds.getWidth() + (makerGap + ruleLength + ruleGap) * unit;
+        const float plateWidth = marginX + width + (ruleGap + ruleLength) * unit + edge, plateHeight = height + 2.f * marginY;
+        const float ruleY = marginY + 0.5f * height;
+
+        makerOutline.applyTransform(juce::AffineTransform::translation(edge - makerBounds.getX(), ruleY - makerBounds.getCentreY()));
 
         const auto place = "translate(" + number(marginX) + " " + number(marginY) + ")";
 
@@ -269,8 +249,7 @@ namespace
 
         svgFile.replaceWithText(svg, false, false, "\n");
 
-        std::cout << "Saved " << svgFile.getFullPathName() << " and " << headerFile.getFullPathName() << std::endl
-                  << "The letters stand at " << number(baseline / height) << " of the height, and a tail comes below them from " << number(tailLeft / width) << " of the width" << std::endl;
+        std::cout << "Saved " << svgFile.getFullPathName() << " and " << headerFile.getFullPathName() << std::endl;
         return true;
     }
 }
