@@ -2,12 +2,14 @@
 **/JuceLibraryCode
 **/Unnamed.filtergraph
 **/MultiMeterTesting.logicx
+**/GriseyTesting.logicx
 **/Spec
 **/.DS_Store
 **/demo.gif
 **/demo.mov
 **/test-audio.mp3
 build/
+legacy/
 build-*/
 cmake-build-*/
 .vscode/

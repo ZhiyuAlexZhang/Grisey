@@ -162,17 +162,10 @@ void GriseyAudioProcessorEditor::paintHeader(juce::Graphics& g, juce::Rectangle<
     g.setColour(Theme::edge);
     g.fillRect(bounds.withTop(bounds.getBottom() - 1.f));
 
-    // The name of the plugin, with its ending in the accent color
-    auto name = area.withX(juce::roundToInt(tabLeft)).withWidth(juce::roundToInt(nameTabWidth)).translated(0, 1);
-    const auto nameFont = Theme::font(16.f);
-    const int startWidth = Theme::textWidth(nameFont, "Gris"), endWidth = Theme::textWidth(nameFont, "ey");
-    name = name.withSizeKeepingCentre(startWidth + endWidth, name.getHeight());
-
-    g.setFont(nameFont);
-    g.setColour(juce::Colour(0xfff0e0e0));
-    g.drawText("Gris", name.removeFromLeft(startWidth), juce::Justification::centredLeft);
-    g.setColour(Theme::accent);
-    g.drawText("ey", name, juce::Justification::centredLeft);
+    // The name of the plugin
+    g.setFont(Theme::font(16.f));
+    g.setColour(Theme::wordmark);
+    g.drawText("Grisey", area.withX(juce::roundToInt(tabLeft)).withWidth(juce::roundToInt(nameTabWidth)).translated(0, 1), juce::Justification::centred);
 }
 
 void GriseyAudioProcessorEditor::paintBottomBar(juce::Graphics& g, juce::Rectangle<int> area)
