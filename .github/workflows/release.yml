@@ -47,6 +47,15 @@ jobs:
           cd build/Grisey_artefacts/Release
           cp -R VST3/Grisey.vst3 AU/Grisey.component CLAP/Grisey.clap Standalone/Grisey.app "$GITHUB_WORKSPACE/package/Grisey ${{ github.ref_name }}/"
           cd "$GITHUB_WORKSPACE"
+
+          # The linker signs only the binaries, which leaves the bundles failing a strict check of their
+          # signatures. There is no developer identity to sign with, so each bundle is signed ad hoc as a
+          # whole, which is what Apple Silicon asks for at the least.
+          for bundle in "package/Grisey ${{ github.ref_name }}"/Grisey.*; do
+            codesign --force --deep --sign - "$bundle"
+            codesign --verify --deep --strict "$bundle"
+          done
+
           cp LICENSE.md README.md "package/Grisey ${{ github.ref_name }}/"
           ditto -c -k --keepParent "package/Grisey ${{ github.ref_name }}" "Grisey-${{ github.ref_name }}-macOS.zip"
 
