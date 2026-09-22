@@ -10,15 +10,32 @@ It runs as a VST3, AU or CLAP plugin, or as a standalone app, on macOS and Windo
 
 https://github.com/user-attachments/assets/0179e2fa-0496-4e1f-8aec-9bc1714591a3
 
-<p align="center"><img src="docs/images/spectrum.png" alt="The spectrum view"></p>
+<table align="center">
+  <tr>
+    <td align="center"><b>Spectrum</b></td>
+    <td align="center"><b>Spectrogram</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/spectrum.png" alt="The spectrum view"></td>
+    <td><img src="docs/images/spectrogram.png" alt="The spectrogram view"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Loudness</b></td>
+    <td align="center"><b>History</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/loudness.png" alt="The loudness view"></td>
+    <td><img src="docs/images/history.png" alt="The history view"></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><b>Goniometer</b></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><img src="docs/images/goniometer.png" alt="The goniometer view" width="50%"></td>
+  </tr>
+</table>
 
-| Spectrogram | Loudness |
-| :---: | :---: |
-| ![The spectrogram view](docs/images/spectrogram.png) | ![The loudness view](docs/images/loudness.png) |
-| **History** | **Goniometer** |
-| ![The history view](docs/images/history.png) | ![The goniometer view](docs/images/goniometer.png) |
-
-The spectrogram, the loudness and the history above are pictures of the same half minute of a song, its intro and the moment the full mix comes in, because the three views share one timeline.
+The film goes through the five views with a song, from its intro to the moment the full mix comes in. The spectrogram, the loudness and the history are pictures of that same half minute, because the three views share one timeline.
 
 ## Features
 
