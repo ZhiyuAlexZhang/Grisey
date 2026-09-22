@@ -8,6 +8,8 @@ It runs as a VST3, AU or CLAP plugin, or as a standalone app, on macOS and Windo
 
 **Status:** version 2.0 is in beta. It has been used as a standalone app and in JUCE's AudioPluginHost on macOS, it passes Apple's `auval`, and every build is checked with [pluginval](https://github.com/Tracktion/pluginval) on macOS and Windows. It has not been tried in many hosts, and hardly at all by hand on Windows, so reports are welcome in the [issues](https://github.com/ZhiyuAlexZhang/Grisey/issues).
 
+https://github.com/user-attachments/assets/0179e2fa-0496-4e1f-8aec-9bc1714591a3
+
 <p align="center"><img src="docs/images/spectrum.png" alt="The spectrum view"></p>
 
 | Spectrogram | Loudness |
