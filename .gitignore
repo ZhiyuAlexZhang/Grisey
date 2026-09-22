@@ -13,3 +13,6 @@ build-*/
 cmake-build-*/
 .vscode/
 .idea/
+
+# Films written by GriseySnapshot frames=, which are gigabytes of raw pixels
+*.raw

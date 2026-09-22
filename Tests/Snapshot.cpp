@@ -580,6 +580,8 @@ int main(int argc, char* argv[])
     audioThread.join();
     editor.reset();
 
-    std::cout << "Saved " << output.getFullPathName() << std::endl;
+    if (framesPerSecond <= 0.0)
+        std::cout << "Saved " << output.getFullPathName() << std::endl;
+
     return 0;
 }
