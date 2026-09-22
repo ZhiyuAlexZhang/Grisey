@@ -28,11 +28,11 @@
 // picture. "GriseySnapshot menu.png menu" draws a sample menu with the look and feel instead: a
 // section, a current choice, a submenu, a separator and an item that is switched off.
 //
-// frames=30 writes every frame, at 30 a second, from the start until the end, as raw pixels to
-// output.raw, for making a film of the editor with ffmpeg (the size of a frame and the ffmpeg
-// command are printed at the end). Raw, because encoding a picture takes longer than a frame.
-// show=2@8,4@16 changes to those views at those seconds while it runs, so that one film can go
-// through the views.
+// frames=30 makes a film of the editor, at 30 frames a second, from the start until the end, as
+// output.mp4: every frame is handed to ffmpeg as raw pixels, which encodes it as it goes. The
+// frames are at twice the size of the editor, as a Retina display shows it. show=2@8,4@16
+// changes to those views at those seconds while it runs, so that one film can go through the
+// views. ffmpeg has to be on the PATH.
 //
 // audio=song.mp3 plays a file through the plugin instead of the test signal, in a loop, and
 // from=30 starts it 30 s in. The file is read with whatever formats the system offers.
@@ -491,13 +491,26 @@ int main(int argc, char* argv[])
     FrameSaver frameSaver;
     int frameNumber = 0, frameWidth = 0, frameHeight = 0;
     const auto filmStart = std::chrono::steady_clock::now();
-    const auto rawFile = output.withFileExtension("raw");
-    std::unique_ptr<juce::FileOutputStream> rawStream;
+    const auto filmFile = output.withFileExtension("mp4");
+    FILE* encoder = nullptr;
 
     if (editor != nullptr && framesPerSecond > 0.0)
     {
-        rawFile.deleteFile();
-        rawStream = std::make_unique<juce::FileOutputStream>(rawFile);
+        // The frames are at twice the editor's size, as on a Retina display
+        frameWidth = 2 * editor->getWidth();
+        frameHeight = 2 * editor->getHeight();
+
+        juce::String command;
+        command << "ffmpeg -loglevel error -y -f rawvideo -pix_fmt bgra -s " << frameWidth << "x" << frameHeight
+                << " -r " << framesPerSecond << " -i - -c:v libx264 -preset fast -crf 17 -pix_fmt yuv420p -movflags +faststart \""
+                << filmFile.getFullPathName() << "\"";
+        encoder = popen(command.toRawUTF8(), "w");
+
+        if (encoder == nullptr)
+        {
+            std::cout << "Could not start ffmpeg" << std::endl;
+            return 1;
+        }
 
         frameSaver.callback = [&]
         {
@@ -506,17 +519,15 @@ int main(int argc, char* argv[])
             if (frameNumber >= due)
                 return;
 
-            // At the editor's own scale, which is 1 for a film: 2 would be four times the pixels
-            const auto image = editor->createComponentSnapshot(editor->getLocalBounds(), true, 1.f);
+            const auto image = editor->createComponentSnapshot(editor->getLocalBounds(), true, 2.f);
             juce::Image::BitmapData pixels(image, juce::Image::BitmapData::readOnly);
-            frameWidth = pixels.width;
-            frameHeight = pixels.height;
+            jassert(pixels.width == frameWidth && pixels.height == frameHeight);
 
             // A frame that was missed is the same picture again, so the film keeps time
             while (frameNumber < due)
             {
                 for (int y = 0; y < pixels.height; ++y)
-                    rawStream->write(pixels.getLinePointer(y), (size_t) pixels.width * (size_t) pixels.pixelStride);
+                    fwrite(pixels.getLinePointer(y), 1, (size_t) pixels.width * (size_t) pixels.pixelStride, encoder);
                 ++frameNumber;
             }
         };
@@ -546,10 +557,8 @@ int main(int argc, char* argv[])
         if (framesPerSecond > 0.0)
         {
             frameSaver.stopTimer();
-            rawStream.reset();
-            std::cout << "Wrote " << frameNumber << " frames of " << frameWidth << "x" << frameHeight << " BGRA pixels to " << rawFile.getFullPathName() << std::endl
-                      << "ffmpeg -f rawvideo -pix_fmt bgra -s " << frameWidth << "x" << frameHeight << " -r " << framesPerSecond
-                      << " -i \"" << rawFile.getFullPathName() << "\" -c:v libx264 -pix_fmt yuv420p -crf 18 film.mp4" << std::endl;
+            pclose(encoder);
+            std::cout << "Saved " << filmFile.getFullPathName() << ": " << frameNumber << " frames of " << frameWidth << "x" << frameHeight << std::endl;
             juce::MessageManager::getInstance()->stopDispatchLoop();
             return;
         }
