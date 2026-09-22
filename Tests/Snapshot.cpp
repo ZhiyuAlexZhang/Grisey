@@ -104,6 +104,26 @@ namespace
 
 namespace
 {
+    // A pipe to a command's standard input. Windows names these with an underscore, and its pipes are
+    // in text mode unless they are asked to be in binary mode, which pixels have to be.
+    FILE* openPipeTo(const juce::String& command)
+    {
+       #if JUCE_WINDOWS
+        return _popen(command.toRawUTF8(), "wb");
+       #else
+        return popen(command.toRawUTF8(), "w");
+       #endif
+    }
+
+    void closePipe(FILE* pipe)
+    {
+       #if JUCE_WINDOWS
+        _pclose(pipe);
+       #else
+        pclose(pipe);
+       #endif
+    }
+
     // The data of an SVG path for a JUCE path
     juce::String toSvgData(const juce::Path& path)
     {
@@ -475,12 +495,13 @@ int main(int argc, char* argv[])
     };
 
     // Change to the views that were asked for, when their times come
-    for (const auto& [viewId, atSeconds] : viewChanges)
+    for (const auto& change : viewChanges)
     {
-        juce::Timer::callAfterDelay((int) (atSeconds * 1000.0), [&, viewId = viewId]
+        const int viewToShow = change.first;
+        juce::Timer::callAfterDelay((int) (change.second * 1000.0), [&, viewToShow]
         {
             if (auto* parameter = processor.apvts.getParameter(Parameters::ID::mainView))
-                parameter->setValueNotifyingHost(parameter->convertTo0to1((float) viewId));
+                parameter->setValueNotifyingHost(parameter->convertTo0to1((float) viewToShow));
         });
     }
 
@@ -508,7 +529,7 @@ int main(int argc, char* argv[])
         command << "ffmpeg -loglevel error -y -f rawvideo -pix_fmt bgra -s " << frameWidth << "x" << frameHeight
                 << " -r " << framesPerSecond << " -i - -c:v libx264 -preset fast -crf 17 -pix_fmt yuv420p -movflags +faststart \""
                 << filmFile.getFullPathName() << "\"";
-        encoder = popen(command.toRawUTF8(), "w");
+        encoder = openPipeTo(command);
 
         if (encoder == nullptr)
         {
@@ -561,7 +582,7 @@ int main(int argc, char* argv[])
         if (framesPerSecond > 0.0)
         {
             frameSaver.stopTimer();
-            pclose(encoder);
+            closePipe(encoder);
             std::cout << "Saved " << filmFile.getFullPathName() << ": " << frameNumber << " frames of " << frameWidth << "x" << frameHeight << std::endl;
             juce::MessageManager::getInstance()->stopDispatchLoop();
             return;
