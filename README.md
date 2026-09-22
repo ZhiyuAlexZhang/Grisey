@@ -141,7 +141,9 @@ moment, which shows what each view recorded while it was hidden. `audio=song.mp3
 through the plugin in place of the test signal, and `from=30` starts it 30 s in, which is how the
 pictures on this page were made. `frames=30` makes a film instead, at that rate and at twice the
 size of the editor, through ffmpeg, and `show=2@8,4@15` changes to those views at those seconds, and `lead=7` starts the film 7 s in, so
-the views of the timeline have something recorded when it begins. `click=Reset@20` presses the button of that name 20 s in. The
+the views of the timeline have something recorded when it begins. The film at the top of this page
+was made with `lead=7 show=2@15,4@22,3@29,0@34`, from the start of a song, and GitHub hosts it;
+films are kept out of the repository (`docs/film/` is ignored), because every clone would carry them. `click=Reset@20` presses the button of that name 20 s in. The
 tool's window ignores the mouse, so that it cannot take a click that was meant for something else.
 
 The same tool writes the name in the header as an outline (`GriseySnapshot out.svg wordmark

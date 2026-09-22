@@ -16,3 +16,7 @@ cmake-build-*/
 
 # Films written by GriseySnapshot frames=, which are gigabytes of raw pixels
 *.raw
+
+# Films of the editor (docs/film): tens of megabytes that every clone would carry for ever. The one on
+# the README is hosted by GitHub as an attachment; the rest are for the website.
+docs/film/
