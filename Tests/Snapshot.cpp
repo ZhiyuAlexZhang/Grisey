@@ -28,6 +28,12 @@
 // picture. "GriseySnapshot menu.png menu" draws a sample menu with the look and feel instead: a
 // section, a current choice, a submenu, a separator and an item that is switched off.
 //
+// frames=30 writes every frame, at 30 a second, from the start until the end, as raw pixels to
+// output.raw, for making a film of the editor with ffmpeg (the size of a frame and the ffmpeg
+// command are printed at the end). Raw, because encoding a picture takes longer than a frame.
+// show=2@8,4@16 changes to those views at those seconds while it runs, so that one film can go
+// through the views.
+//
 // audio=song.mp3 plays a file through the plugin instead of the test signal, in a loop, and
 // from=30 starts it 30 s in. The file is read with whatever formats the system offers.
 namespace
@@ -333,6 +339,8 @@ int main(int argc, char* argv[])
     juce::String size, buttonToClick;
     double secondsUntilClick = 0.0;
     juce::Array<int> alsoViews;
+    double framesPerSecond = 0.0;
+    std::vector<std::pair<int, double>> viewChanges;   // view, seconds
 
     for (int i = 4; i < argc; ++i)
     {
@@ -346,6 +354,13 @@ int main(int argc, char* argv[])
         {
             buttonToClick = argument.fromFirstOccurrenceOf("=", false, false).upToFirstOccurrenceOf("@", false, false);
             secondsUntilClick = argument.fromFirstOccurrenceOf("@", false, false).getDoubleValue();
+        }
+        else if (id == "frames")
+            framesPerSecond = argument.fromFirstOccurrenceOf("=", false, false).getDoubleValue();
+        else if (id == "show")
+        {
+            for (auto& token : juce::StringArray::fromTokens(argument.fromFirstOccurrenceOf("=", false, false), ",", {}))
+                viewChanges.push_back({ token.upToFirstOccurrenceOf("@", false, false).getIntValue(), token.fromFirstOccurrenceOf("@", false, false).getDoubleValue() });
         }
         else if (id == "size")
             size = argument.fromFirstOccurrenceOf("=", false, false);
@@ -455,6 +470,60 @@ int main(int argc, char* argv[])
         });
     };
 
+    // Change to the views that were asked for, when their times come
+    for (const auto& [viewId, atSeconds] : viewChanges)
+    {
+        juce::Timer::callAfterDelay((int) (atSeconds * 1000.0), [&, viewId = viewId]
+        {
+            if (auto* parameter = processor.apvts.getParameter(Parameters::ID::mainView))
+                parameter->setValueNotifyingHost(parameter->convertTo0to1((float) viewId));
+        });
+    }
+
+    // Save a picture of every frame, at a steady rate that the frames are numbered by, so a frame that took
+    // long to draw does not slow the film down
+    struct FrameSaver : public juce::Timer
+    {
+        std::function<void()> callback;
+        void timerCallback() override { callback(); }
+    };
+
+    FrameSaver frameSaver;
+    int frameNumber = 0, frameWidth = 0, frameHeight = 0;
+    const auto filmStart = std::chrono::steady_clock::now();
+    const auto rawFile = output.withFileExtension("raw");
+    std::unique_ptr<juce::FileOutputStream> rawStream;
+
+    if (editor != nullptr && framesPerSecond > 0.0)
+    {
+        rawFile.deleteFile();
+        rawStream = std::make_unique<juce::FileOutputStream>(rawFile);
+
+        frameSaver.callback = [&]
+        {
+            const double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - filmStart).count();
+            const int due = (int) (elapsed * framesPerSecond);
+            if (frameNumber >= due)
+                return;
+
+            // At the editor's own scale, which is 1 for a film: 2 would be four times the pixels
+            const auto image = editor->createComponentSnapshot(editor->getLocalBounds(), true, 1.f);
+            juce::Image::BitmapData pixels(image, juce::Image::BitmapData::readOnly);
+            frameWidth = pixels.width;
+            frameHeight = pixels.height;
+
+            // A frame that was missed is the same picture again, so the film keeps time
+            while (frameNumber < due)
+            {
+                for (int y = 0; y < pixels.height; ++y)
+                    rawStream->write(pixels.getLinePointer(y), (size_t) pixels.width * (size_t) pixels.pixelStride);
+                ++frameNumber;
+            }
+        };
+
+        frameSaver.startTimerHz((int) std::ceil(framesPerSecond));
+    }
+
     // Press the button that was asked for, when its time comes
     if (editor != nullptr && buttonToClick.isNotEmpty())
     {
@@ -473,6 +542,17 @@ int main(int argc, char* argv[])
     {
         if (editor == nullptr)
             return;
+
+        if (framesPerSecond > 0.0)
+        {
+            frameSaver.stopTimer();
+            rawStream.reset();
+            std::cout << "Wrote " << frameNumber << " frames of " << frameWidth << "x" << frameHeight << " BGRA pixels to " << rawFile.getFullPathName() << std::endl
+                      << "ffmpeg -f rawvideo -pix_fmt bgra -s " << frameWidth << "x" << frameHeight << " -r " << framesPerSecond
+                      << " -i \"" << rawFile.getFullPathName() << "\" -c:v libx264 -pix_fmt yuv420p -crf 18 film.mp4" << std::endl;
+            juce::MessageManager::getInstance()->stopDispatchLoop();
+            return;
+        }
 
         if (alsoViews.isEmpty())
         {

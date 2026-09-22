@@ -120,7 +120,8 @@ Parameters can be set by their IDs, for example `spectrumChannels=1`, and `size=
 size of the editor. `also=2,3` stops the audio and then saves those views as well, all of the same
 moment, which shows what each view recorded while it was hidden. `audio=song.mp3` plays a file
 through the plugin in place of the test signal, and `from=30` starts it 30 s in, which is how the
-pictures on this page were made. `click=Reset@20` presses the button of that name 20 s in. The
+pictures on this page were made. `frames=30` writes every frame as raw pixels for a film, and
+`show=2@8,4@15` changes to those views at those seconds, which is how the film was made. `click=Reset@20` presses the button of that name 20 s in. The
 tool's window ignores the mouse, so that it cannot take a click that was meant for something else.
 
 The same tool writes the name in the header as an outline (`GriseySnapshot out.svg wordmark
