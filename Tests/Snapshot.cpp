@@ -32,7 +32,9 @@
 // output.mp4: every frame is handed to ffmpeg as raw pixels, which encodes it as it goes. The
 // frames are at twice the size of the editor, as a Retina display shows it. show=2@8,4@16
 // changes to those views at those seconds while it runs, so that one film can go through the
-// views. ffmpeg has to be on the PATH.
+// views. lead=7 starts the film 7 s in, so that the views of the timeline have something recorded
+// when the film begins; the seconds of show= count from the start of the audio, not of the film.
+// ffmpeg has to be on the PATH.
 //
 // audio=song.mp3 plays a file through the plugin instead of the test signal, in a loop, and
 // from=30 starts it 30 s in. The file is read with whatever formats the system offers.
@@ -339,7 +341,7 @@ int main(int argc, char* argv[])
     juce::String size, buttonToClick;
     double secondsUntilClick = 0.0;
     juce::Array<int> alsoViews;
-    double framesPerSecond = 0.0;
+    double framesPerSecond = 0.0, leadSeconds = 0.0;
     std::vector<std::pair<int, double>> viewChanges;   // view, seconds
 
     for (int i = 4; i < argc; ++i)
@@ -357,6 +359,8 @@ int main(int argc, char* argv[])
         }
         else if (id == "frames")
             framesPerSecond = argument.fromFirstOccurrenceOf("=", false, false).getDoubleValue();
+        else if (id == "lead")
+            leadSeconds = argument.fromFirstOccurrenceOf("=", false, false).getDoubleValue();
         else if (id == "show")
         {
             for (auto& token : juce::StringArray::fromTokens(argument.fromFirstOccurrenceOf("=", false, false), ",", {}))
@@ -514,7 +518,7 @@ int main(int argc, char* argv[])
 
         frameSaver.callback = [&]
         {
-            const double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - filmStart).count();
+            const double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - filmStart).count() - leadSeconds;
             const int due = (int) (elapsed * framesPerSecond);
             if (frameNumber >= due)
                 return;

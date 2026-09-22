@@ -121,7 +121,8 @@ size of the editor. `also=2,3` stops the audio and then saves those views as wel
 moment, which shows what each view recorded while it was hidden. `audio=song.mp3` plays a file
 through the plugin in place of the test signal, and `from=30` starts it 30 s in, which is how the
 pictures on this page were made. `frames=30` makes a film instead, at that rate and at twice the
-size of the editor, through ffmpeg, and `show=2@8,4@15` changes to those views at those seconds. `click=Reset@20` presses the button of that name 20 s in. The
+size of the editor, through ffmpeg, and `show=2@8,4@15` changes to those views at those seconds, and `lead=7` starts the film 7 s in, so
+the views of the timeline have something recorded when it begins. `click=Reset@20` presses the button of that name 20 s in. The
 tool's window ignores the mouse, so that it cannot take a click that was meant for something else.
 
 The same tool writes the name in the header as an outline (`GriseySnapshot out.svg wordmark

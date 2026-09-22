@@ -148,6 +148,10 @@ costs about 0.15% of one core at 48 kHz.
       in a place that does not depend on the product's letters, so that other plugins of the
       maker's can have it in the same place. The tab starts at the edge of the window and is as
       wide as the line in it.
+- [x] The goniometer's trace is exposed as brightly as the spectrum's line: one pass of the beam is a
+      bright yellow, and where passes pile up the trace goes on to white. It had been a fifth as
+      bright, a transparent ochre. The snapshot tool makes films (`frames=`, `show=`, `lead=`), at
+      the size of a Retina display, through ffmpeg.
 - [ ] Try everything that a picture cannot show, by hand: the menus, the tabs, the readouts under
       the mouse, dragging the knob and the corner of the window, and the reset buttons
 - [ ] The spectrogram and the history have one image column per slot of the timeline, stretched
