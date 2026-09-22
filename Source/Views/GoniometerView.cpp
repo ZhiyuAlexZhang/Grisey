@@ -11,8 +11,10 @@ GoniometerView::GoniometerView(juce::AudioProcessorValueTreeState& apvts, const 
     for (int i = 0; i < toneMapSize; ++i)
     {
         const float light = toneMapMaxIntensity * (float)i / (float)(toneMapSize - 1);
-        const float brightness = 1.f - std::exp(-0.9f * light);
-        const float whiteness = juce::jmax(0.f, brightness - 0.6f) * 1.5f;
+        // The exposure: one pass of the beam is bright already, as the line of the spectrum is, and where
+        // passes pile up the trace goes on to white
+        const float brightness = 1.f - std::exp(-toneMapExposure * light);
+        const float whiteness = juce::jmax(0.f, brightness - 0.75f) * 2.5f;
         const auto colour = Theme::accent.interpolatedWith(juce::Colours::white, whiteness);
 
         // The pixels of an ARGB image hold premultiplied colors

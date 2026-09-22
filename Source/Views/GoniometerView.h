@@ -87,6 +87,7 @@ private:
     // so that dense parts of the trace keep their detail, and the brightest parts turn towards white.
     static constexpr int toneMapSize = 1024;
     static constexpr float toneMapMaxIntensity = 8.f;
+    static constexpr float toneMapExposure = 3.5f;
     std::array<juce::PixelARGB, toneMapSize> toneMap;
 
     Mode mode = lissajous;
