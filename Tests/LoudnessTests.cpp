@@ -80,6 +80,15 @@ struct LoudnessMeterTests : juce::UnitTest
             expectWithinAbsoluteError(readings.momentary, -23.f, 0.1f);
         }
 
+        beginTest("The momentary loudness is right from the very first 100 ms block");
+        {
+            // Before a full 400 ms window has been measured, the unused slots hold
+            // zeros. Averaging them in made the reading start 6 dB low and climb
+            // back over the first 400 ms, which shows up as a jump after a reset.
+            const auto readings = measure(48000.0, { { -23.0, 0.1 } });
+            expectWithinAbsoluteError(readings.momentary, -23.f, 0.1f);
+        }
+
         beginTest("Tech 3341 case 2: -33 dBFS reads -33.0 LUFS");
         {
             const auto readings = measure(48000.0, { { -33.0, 20.0 } });

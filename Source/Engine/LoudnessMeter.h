@@ -258,13 +258,22 @@ private:
         rangeHigh.store(silence, std::memory_order_relaxed);
     }
 
-    // The mean energy of the most recent blocks
+    // The mean energy of the most recent blocks. Before a full window has been
+    // seen, only the blocks that have actually been measured are averaged; the
+    // unused slots still hold zeros, and including them made the momentary
+    // reading start up to 6 dB low and climb back over the first 400 ms.
     double meanOfRecent(int numBlocks) const
     {
+        const auto seen = static_cast<int>(std::min<std::uint64_t>(
+            static_cast<std::uint64_t>(numBlocks), numBlocksSeen));
+
+        if (seen <= 0)
+            return 0.0;
+
         double sum = 0.0;
-        for (int i = 1; i <= numBlocks; ++i)
+        for (int i = 1; i <= seen; ++i)
             sum += recentBlocks[static_cast<size_t>((recentIndex - i + blocksInShortTerm) % blocksInShortTerm)];
-        return sum / static_cast<double>(numBlocks);
+        return sum / static_cast<double>(seen);
     }
 
     // Called every 100 ms
