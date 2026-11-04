@@ -80,6 +80,40 @@ struct LoudnessMeterTests : juce::UnitTest
             expectWithinAbsoluteError(readings.momentary, -23.f, 0.1f);
         }
 
+        beginTest("The momentary loudness is right from the very first 100 ms block");
+        {
+            // Before a full 400 ms window has been measured, the unused slots hold
+            // zeros. Averaging them in made the reading start 6 dB low and climb
+            // back over the first 400 ms, which shows up as a jump after a reset.
+            const auto readings = measure(48000.0, { { -23.0, 0.1 } });
+            expectWithinAbsoluteError(readings.momentary, -23.f, 0.1f);
+        }
+
+        beginTest("A non-finite sample does not poison the meter");
+        {
+            // A NaN makes the biquad state NaN, and the recurrence carries it for
+            // ever: the meter then reads -inf and never recovers. The sample is
+            // discarded before the filter, so the meter carries on measuring.
+            LoudnessMeter meter;
+            meter.prepare(48000.0);
+            feedSine(meter, 48000.0, { { -23.0, 3.0 } });
+
+            // one block in which a single sample is not a number
+            std::vector<float> block (2048);
+            const double amplitude = std::pow(10.0, -23.0 / 20.0);
+            for (size_t i = 0; i < block.size(); ++i)
+                block[i] = (float) (amplitude * std::sin(0.05 * (double) i));
+            block[100] = std::numeric_limits<float>::quiet_NaN();
+            meter.process(block.data(), block.data(), (int) block.size());
+
+            // then the programme gets 13 dB louder, which a poisoned meter can never show
+            feedSine(meter, 48000.0, { { -10.0, 3.0 } });
+
+            const auto readings = meter.read();
+            expectWithinAbsoluteError(readings.momentary, -10.f, 0.2f);
+            expect(readings.integrated > -20.f);
+        }
+
         beginTest("Tech 3341 case 2: -33 dBFS reads -33.0 LUFS");
         {
             const auto readings = measure(48000.0, { { -33.0, 20.0 } });

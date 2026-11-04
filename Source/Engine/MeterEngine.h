@@ -75,8 +75,11 @@ public:
 
         for (int i = 0; i < numSamples; ++i)
         {
-            const float l = input[0][i];
-            const float r = input[1][i];
+            // A non-finite sample would sit in the RMS window and in the
+            // correlation integrators, reading as silence until the window next
+            // recomputes itself. Replace it before it is used.
+            const float l = std::isfinite(input[0][i]) ? input[0][i] : 0.f;
+            const float r = std::isfinite(input[1][i]) ? input[1][i] : 0.f;
 
             blockPeak[0] = std::max(blockPeak[0], std::abs(l));
             blockPeak[1] = std::max(blockPeak[1], std::abs(r));

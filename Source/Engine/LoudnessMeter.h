@@ -116,7 +116,13 @@ public:
             // Left and right both have a channel weight of 1
             for (size_t channel = 0; channel < 2; ++channel)
             {
-                const double weighted = filters[channel].process(static_cast<double>(input[channel][i]), shelf, highPass);
+                // A non-finite sample would make the biquad state NaN, and the
+                // recurrence would carry it forever: the meter would then read
+                // -inf and never recover. Discard such samples before the filter
+                // sees them. This rejects the sample, it does not delay anything.
+                const double sample = static_cast<double>(input[channel][i]);
+                const double weighted = filters[channel].process(
+                    std::isfinite(sample) ? sample : 0.0, shelf, highPass);
                 blockEnergy += weighted * weighted;
             }
 
@@ -258,13 +264,22 @@ private:
         rangeHigh.store(silence, std::memory_order_relaxed);
     }
 
-    // The mean energy of the most recent blocks
+    // The mean energy of the most recent blocks. Before a full window has been
+    // seen, only the blocks that have actually been measured are averaged; the
+    // unused slots still hold zeros, and including them made the momentary
+    // reading start up to 6 dB low and climb back over the first 400 ms.
     double meanOfRecent(int numBlocks) const
     {
+        const auto seen = static_cast<int>(std::min<std::uint64_t>(
+            static_cast<std::uint64_t>(numBlocks), numBlocksSeen));
+
+        if (seen <= 0)
+            return 0.0;
+
         double sum = 0.0;
-        for (int i = 1; i <= numBlocks; ++i)
+        for (int i = 1; i <= seen; ++i)
             sum += recentBlocks[static_cast<size_t>((recentIndex - i + blocksInShortTerm) % blocksInShortTerm)];
-        return sum / static_cast<double>(numBlocks);
+        return sum / static_cast<double>(seen);
     }
 
     // Called every 100 ms

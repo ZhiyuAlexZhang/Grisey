@@ -274,6 +274,30 @@ struct MeterEngineTests : juce::UnitTest
             expect(correlationAfterFlip(0.1f) < -0.8f);
             expect(correlationAfterFlip(2.f) > 0.5f);
         }
+
+        beginTest("A non-finite sample does not poison the correlation");
+        {
+            // The correlation integrators are lr = x + c * (lr - x), which is
+            // absorbing: once lr, ll or rr is NaN it never comes back, and the
+            // correlation reads NaN for the rest of the session. The RMS window
+            // heals on its own, the correlation does not.
+            MeterEngine engine;
+            engine.prepare(testSampleRate);
+            processInBlocks(engine, makeSine(48000, 0.5f, 1000.f, 0.f), 512);
+
+            auto poisoned = makeSine(4800, 0.5f, 1000.f, 0.f);
+            poisoned.setSample(0, 200, std::numeric_limits<float>::quiet_NaN());
+            processInBlocks(engine, poisoned, 512);
+
+            for (int i = 0; i < 20; ++i)                     // then 2 s of clean audio
+                processInBlocks(engine, makeSine(4800, 0.5f, 1000.f, 0.f), 512);
+
+            const auto readings = engine.read();
+            expect(std::isfinite(readings.correlationFast));
+            expect(std::isfinite(readings.correlationSlow));
+            expectWithinAbsoluteError(readings.correlationFast, 1.f, 0.05f);
+            expectWithinAbsoluteError(readings.rms[0], 0.5f / std::sqrt(2.f), 0.01f);
+        }
     }
 };
 
