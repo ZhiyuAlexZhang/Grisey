@@ -116,7 +116,13 @@ public:
             // Left and right both have a channel weight of 1
             for (size_t channel = 0; channel < 2; ++channel)
             {
-                const double weighted = filters[channel].process(static_cast<double>(input[channel][i]), shelf, highPass);
+                // A non-finite sample would make the biquad state NaN, and the
+                // recurrence would carry it forever: the meter would then read
+                // -inf and never recover. Discard such samples before the filter
+                // sees them. This rejects the sample, it does not delay anything.
+                const double sample = static_cast<double>(input[channel][i]);
+                const double weighted = filters[channel].process(
+                    std::isfinite(sample) ? sample : 0.0, shelf, highPass);
                 blockEnergy += weighted * weighted;
             }
 
