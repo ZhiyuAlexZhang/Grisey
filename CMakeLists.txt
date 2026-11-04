@@ -5,8 +5,21 @@ project(Grisey VERSION 2.0.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS version")
-set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "macOS architectures")
+# Default the macOS target when the caller has not chosen one. These sit after
+# project(), where CMake's Apple platform module has already created both cache
+# entries as empty strings, so an unconditional set(... CACHE ...) would do
+# nothing (no FORCE, entry exists) and nothing here used to take effect: release
+# builds came out arm64-only, at the deployment target of whichever machine
+# built them. The test is for emptiness rather than DEFINED for that reason, and
+# the assignment needs FORCE to replace the empty entry. Guarding this way keeps
+# a -DCMAKE_OSX_ARCHITECTURES=... override working.
+if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS version" FORCE)
+endif()
+
+if(NOT CMAKE_OSX_ARCHITECTURES)
+    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "macOS architectures" FORCE)
+endif()
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 option(GRISEY_COPY_AFTER_BUILD "Install the built plugins into the user plugin folders" OFF)
